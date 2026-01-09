@@ -1,4 +1,5 @@
 export interface Product {
+  id?: number; // Supabase ID
   code: string;
   quantity: number;
   name?: string;

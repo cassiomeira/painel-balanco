@@ -14,6 +14,8 @@ interface Log {
 export default function App() {
   const [logs, setLogs] = useState<Log[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editLog, setEditLog] = useState<Log | null>(null);
+  const [newQty, setNewQty] = useState("");
 
   useEffect(() => {
     fetchLogs();
@@ -42,6 +44,41 @@ export default function App() {
     else setLogs(data || []);
     setLoading(false);
   };
+
+  const handleDeleteClick = async (id: number) => {
+    if (confirm("Tem certeza que deseja excluir esse registro?")) {
+      const { error } = await supabase.from('inventory_logs').delete().eq('id', id);
+      if (error) alert("Erro ao excluir: " + error.message);
+      else {
+        // UI updates automatically via subscription, but we can optimistically remove it
+        setLogs(prev => prev.filter(l => l.id !== id));
+      }
+    }
+  }
+
+  const handleEditClick = (log: Log) => {
+    setEditLog(log);
+    setNewQty(log.quantity.toString());
+  }
+
+  const saveEdit = async () => {
+    if (editLog && newQty) {
+      const qty = parseInt(newQty);
+      if (isNaN(qty)) return alert("Quantidade inválida");
+
+      const { error } = await supabase
+        .from('inventory_logs')
+        .update({ quantity: qty })
+        .eq('id', editLog.id);
+
+      if (error) alert("Erro ao atualizar: " + error.message);
+      else {
+        // Optimistic update
+        setLogs(prev => prev.map(l => l.id === editLog.id ? { ...l, quantity: qty } : l));
+        setEditLog(null);
+      }
+    }
+  }
 
   const handleExportCsv = () => {
     const csvContent = "data:text/csv;charset=utf-8,"
@@ -115,6 +152,7 @@ export default function App() {
                     <th style={{ padding: '15px' }}>📦 Produto</th>
                     <th style={{ padding: '15px' }}>🔢 Qtd</th>
                     <th style={{ padding: '15px' }}>👤 Usuário</th>
+                    <th style={{ padding: '15px', textAlign: 'right' }}>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -131,6 +169,18 @@ export default function App() {
                       <td style={{ padding: '12px 15px', fontSize: '12px', color: '#666', fontFamily: 'monospace' }}>
                         {log.user_email || log.user_id}
                       </td>
+                      <td style={{ padding: '12px 15px', textAlign: 'right' }}>
+                        <button
+                          onClick={() => handleEditClick(log)}
+                          style={{ marginRight: '10px', background: 'none', border: '1px solid #ccc', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}>
+                          ✏️
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClick(log.id)}
+                          style={{ background: 'none', border: '1px solid #ffcccc', color: 'red', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}>
+                          🗑️
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -142,6 +192,26 @@ export default function App() {
           )}
         </div>
       </main >
+
+      {/* Edit Modal (Simple Inline Style) */}
+      {editLog && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', width: '300px', boxShadow: '0 4px 10px rgba(0,0,0,0.2)' }}>
+            <h3 style={{ marginTop: 0 }}>Editar Quantidade</h3>
+            <p style={{ fontSize: '14px', color: '#666' }}>Produto: {editLog.product_code}</p>
+            <input
+              type="number"
+              value={newQty}
+              onChange={e => setNewQty(e.target.value)}
+              style={{ width: '100%', padding: '8px', fontSize: '16px', marginBottom: '15px', borderRadius: '4px', border: '1px solid #ddd' }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button onClick={() => setEditLog(null)} style={{ padding: '8px 15px', border: 'none', background: '#eee', borderRadius: '4px', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={saveEdit} style={{ padding: '8px 15px', border: 'none', background: '#007bff', color: 'white', borderRadius: '4px', cursor: 'pointer' }}>Salvar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div >
   );
 }

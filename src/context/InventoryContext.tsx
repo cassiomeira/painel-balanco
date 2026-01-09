@@ -57,40 +57,71 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const addProduct = async (product: Product) => {
-        const newProducts = [...products, product];
+        // Optimistic UI update (temp ID)
+        const tempProduct = { ...product, id: Date.now() };
+        const newProducts = [tempProduct, ...products]; // Add to top
         setProducts(newProducts);
         saveProductsLocal(newProducts);
 
         // Sync to Supabase
         if (session?.user) {
-            const { error } = await supabase.from('inventory_logs').insert({
+            const { data, error } = await supabase.from('inventory_logs').insert({
                 product_code: product.code,
                 quantity: product.quantity,
                 product_name: product.name,
                 user_id: session.user.id,
-                user_email: session.user.email // Enviando o email
-            });
+                user_email: session.user.email
+            }).select().single();
 
             if (error) {
                 console.error("Supabase Sync Error:", error);
-                // Optional: Mark as 'un-synced' to retry later
+            } else if (data) {
+                // Update local product with real ID from Supabase
+                const updatedProducts = newProducts.map(p =>
+                    p.id === tempProduct.id ? { ...p, id: data.id } : p
+                );
+                setProducts(updatedProducts);
+                saveProductsLocal(updatedProducts);
             }
         }
     };
 
-    const updateProduct = (index: number, quantity: number) => {
+    const updateProduct = async (index: number, quantity: number) => {
         const newProducts = [...products];
-        if (newProducts[index]) {
-            newProducts[index].quantity = quantity;
+        const product = newProducts[index];
+
+        if (product) {
+            product.quantity = quantity;
             setProducts(newProducts);
             saveProductsLocal(newProducts);
+
+            // Sync Update
+            if (product.id && session?.user) {
+                const { error } = await supabase
+                    .from('inventory_logs')
+                    .update({ quantity: quantity })
+                    .eq('id', product.id);
+
+                if (error) console.error("Update Error:", error);
+            }
         }
     };
 
-    const removeProduct = (index: number) => {
+    const removeProduct = async (index: number) => {
+        const productToRemove = products[index];
         const newProducts = products.filter((_, i) => i !== index);
         setProducts(newProducts);
         saveProductsLocal(newProducts);
+
+        // Sync Delete
+        if (productToRemove.id && session?.user) {
+            const { error } = await supabase
+                .from('inventory_logs')
+                .delete()
+                .eq('id', productToRemove.id);
+
+            if (error) console.error("Delete Error:", error);
+        }
     };
 
     const clearInventory = () => {
