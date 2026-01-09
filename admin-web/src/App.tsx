@@ -141,9 +141,9 @@ export default function App() {
 
         if (desc || ean) {
           productsToInsert.push({
-            internal_code: row[0] ? row[0].toString() : null,
-            description: row[1] ? row[1].toString() : null,
-            ean: row[9] ? row[9].toString() : null,
+            internal_code: interno ? interno.toString() : null,
+            description: desc ? desc.toString() : null,
+            ean: ean ? ean.toString() : null,
             current_quantity: 0
           });
         }
