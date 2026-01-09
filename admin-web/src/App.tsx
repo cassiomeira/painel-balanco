@@ -121,15 +121,20 @@ export default function App() {
       const idxDesc = headerRow.indexOf("DESCRICAO");
       const idxDesc2 = headerRow.indexOf("DESCRIÇÃO");
       const idxEan = headerRow.findIndex((h: string) => h && h.includes("EAN"));
-      // Tentar encontrar coluna de quantidade/estoque
+      // Tentar encontrar coluna de quantidade/estoque (mais variações)
       const idxQty = headerRow.findIndex((h: string) =>
-        h && (h.includes("QTDE") || h.includes("ESTOQUE") || h.includes("QUANTIDADE") || h.includes("SALDO"))
+        h && (h.includes("QTDE") || h.includes("QTD") || h.includes("ESTOQUE") || h.includes("QUANTIDADE") || h.includes("SALDO") || h.includes("ATUAL"))
       );
 
-      const finalIdxDesc = idxDesc !== -1 ? idxDesc : idxDesc2;
+      console.log('📊 Colunas detectadas:', {
+        Interno: idxInterno,
+        Desc: finalIdxDesc,
+        Ean: idxEan,
+        Qty: idxQty
+      });
 
       if (finalIdxDesc === -1 || idxEan === -1) {
-        return alert("Erro: Não encontrei as colunas 'DESCRICAO' e 'CODIGO EAN' na planilha.");
+        return alert(`Erro: Colunas obrigatórias não encontradas.\nDetectado: ${headerRow.join(', ')}`);
       }
 
       const productsToInsert = [];

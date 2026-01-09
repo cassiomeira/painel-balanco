@@ -71,7 +71,7 @@ export default function HomeScreen({ navigation }: any) {
 
             console.log('✅ Resultados:', data?.length || 0);
             if (data && data.length > 0) {
-                console.log('📦 Primeiro resultado:', JSON.stringify(data[0]));
+                console.log('📦 Primeiro resultado completo:', JSON.stringify(data[0], null, 2));
             }
             setSearchResults(data || []);
         } catch (err) {
