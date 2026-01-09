@@ -118,9 +118,13 @@ export default function App() {
       const headerRow = data[0].map((cell: any) => cell?.toString().toUpperCase().trim());
 
       const idxInterno = headerRow.indexOf("INTERNO");
-      const idxDesc = headerRow.indexOf("DESCRICAO"); // Sem acento ou com? A planilha mostra 'DESCRICAO'
-      const idxDesc2 = headerRow.indexOf("DESCRIÇÃO"); // Garantir os dois
-      const idxEan = headerRow.findIndex((h: string) => h && h.includes("EAN")); // "CODIGO EAN"
+      const idxDesc = headerRow.indexOf("DESCRICAO");
+      const idxDesc2 = headerRow.indexOf("DESCRIÇÃO");
+      const idxEan = headerRow.findIndex((h: string) => h && h.includes("EAN"));
+      // Tentar encontrar coluna de quantidade/estoque
+      const idxQty = headerRow.findIndex((h: string) =>
+        h && (h.includes("QTDE") || h.includes("ESTOQUE") || h.includes("QUANTIDADE") || h.includes("SALDO"))
+      );
 
       const finalIdxDesc = idxDesc !== -1 ? idxDesc : idxDesc2;
 
@@ -138,12 +142,14 @@ export default function App() {
         const interno = idxInterno !== -1 ? row[idxInterno] : null;
         const desc = row[finalIdxDesc];
         const ean = row[idxEan];
+        const qty = idxQty !== -1 ? parseInt(row[idxQty]) : 0;
 
         if (desc || ean) {
           productsToInsert.push({
             internal_code: interno ? interno.toString() : null,
             description: desc ? desc.toString() : null,
             ean: ean ? ean.toString() : null,
+            expected_quantity: isNaN(qty) ? 0 : qty,
             current_quantity: 0
           });
         }

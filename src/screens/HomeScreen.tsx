@@ -10,6 +10,7 @@ export default function HomeScreen({ navigation }: any) {
     const [scannedCode, setScannedCode] = useState('');
     const [quantity, setQuantity] = useState('');
     const [name, setName] = useState('');
+    const [expectedQty, setExpectedQty] = useState<number | null>(null);
     const { addProduct, session, signOut, lookupProduct } = useContext(InventoryContext);
     const [hasPermission, setHasPermission] = useState<boolean | null>(null);
     const [loadingProduct, setLoadingProduct] = useState(false);
@@ -88,6 +89,7 @@ export default function HomeScreen({ navigation }: any) {
         const product = await lookupProduct(data);
         if (product && product.description) {
             setName(product.description);
+            setExpectedQty(product.expected_quantity || 0);
             // If scanned code is 'SEM_EAN' or similar, mark for correction
             if (data === 'SEM_EAN' || data === 'SEM GTIN') {
                 setNeedsCorrection(true);
@@ -96,6 +98,7 @@ export default function HomeScreen({ navigation }: any) {
             }
         } else {
             setName(''); // Not found, clear or keep previous? Better clear.
+            setExpectedQty(null);
             setNeedsCorrection(false); // Reset if product not found
         }
         setLoadingProduct(false);
@@ -105,6 +108,7 @@ export default function HomeScreen({ navigation }: any) {
     const selectProduct = (item: any) => {
         setScannedCode(item.ean || 'SEM_EAN');
         setName(item.description);
+        setExpectedQty(item.expected_quantity || 0);
         setSearchText('');
         setSearchResults([]);
         // Auto-mark if missing EAN
@@ -136,6 +140,7 @@ export default function HomeScreen({ navigation }: any) {
         setScannedCode('');
         setQuantity('');
         setName('');
+        setExpectedQty(null);
         setNeedsCorrection(false);
         Alert.alert('Sucesso', 'Produto adicionado!');
     };
@@ -166,14 +171,16 @@ export default function HomeScreen({ navigation }: any) {
                                         <TouchableOpacity
                                             key={item.id}
                                             style={styles.resultItem}
-                                            onPress={() => {
-                                                setScannedCode(item.ean || 'SEM_EAN');
-                                                setName(item.description);
-                                                setSearchText('');
-                                                setSearchResults([]);
-                                            }}
+                                            onPress={() => selectProduct(item)}
                                         >
-                                            <Text style={styles.resultText}>{item.description}</Text>
+                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <Text style={[styles.resultText, { flex: 1 }]}>{item.description}</Text>
+                                                {item.expected_quantity !== undefined && (
+                                                    <Text style={{ fontSize: 13, color: '#0056b3', fontWeight: 'bold' }}>
+                                                        Estoque: {item.expected_quantity}
+                                                    </Text>
+                                                )}
+                                            </View>
                                             <Text style={styles.resultSubText}>
                                                 EAN: {item.ean || 'N/A'} - Cod: {item.internal_code || 'N/A'}
                                             </Text>
@@ -222,6 +229,11 @@ export default function HomeScreen({ navigation }: any) {
                     />
                     {loadingProduct ? <Text style={{ color: 'blue' }}>Buscando produto...</Text> : null}
                     <Text style={styles.label}>Código: {scannedCode}</Text>
+                    {expectedQty !== null && (
+                        <Text style={{ fontSize: 18, color: '#0056b3', fontWeight: 'bold', marginVertical: 5 }}>
+                            Estoque Esperado: {expectedQty}
+                        </Text>
+                    )}
 
                     <Text style={styles.label}>Quantidade (Obrigatório):</Text>
                     <TextInput
@@ -270,6 +282,8 @@ export default function HomeScreen({ navigation }: any) {
                             setScannedCode('');
                             setQuantity('');
                             setName('');
+                            setExpectedQty(null);
+                            setNeedsCorrection(false);
                         }}>
                             <Text style={styles.cancelButtonText}>Cancelar</Text>
                         </TouchableOpacity>

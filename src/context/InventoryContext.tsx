@@ -112,7 +112,7 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
         console.log('🔍 Buscando produto com EAN:', code);
         const { data, error } = await supabaseAnon
             .from('products_base')
-            .select('description')
+            .select('description, expected_quantity')
             .eq('ean', code)
             .single();
 
