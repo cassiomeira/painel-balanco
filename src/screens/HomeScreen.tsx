@@ -3,18 +3,116 @@ import { CameraView, Camera } from 'expo-camera';
 import { InventoryContext } from '../context/InventoryContext';
 import React, { useState, useEffect, useContext } from 'react';
 import Scanner from '../components/Scanner';
+import { supabase, supabaseAnon } from '../services/supabase';
 
 export default function HomeScreen({ navigation }: any) {
     const [scanning, setScanning] = useState(false);
     const [scannedCode, setScannedCode] = useState('');
     const [quantity, setQuantity] = useState('');
     const [name, setName] = useState('');
-    const { addProduct, session, signOut } = useContext(InventoryContext);
+    const { addProduct, session, signOut, lookupProduct } = useContext(InventoryContext);
     const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+    const [loadingProduct, setLoadingProduct] = useState(false);
+    const [needsCorrection, setNeedsCorrection] = useState(false);
 
-    const handleBarCodeScanned = (data: string) => {
+    // Search State
+    const [searchText, setSearchText] = useState('');
+    const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [totalProducts, setTotalProducts] = useState<number | null>(null);
+
+    // Buscar total de produtos ao carregar (igual painel web)
+    useEffect(() => {
+        const fetchTotal = async () => {
+            try {
+                const { count, error } = await supabaseAnon
+                    .from('products_base')
+                    .select('*', { count: 'exact', head: true });
+
+                if (error) {
+                    console.error('Erro ao contar produtos:', error);
+                    setTotalProducts(0);
+                } else {
+                    console.log('✅ Total de produtos na base:', count);
+                    setTotalProducts(count || 0);
+                }
+            } catch (err) {
+                console.error('Erro:', err);
+                setTotalProducts(0);
+            }
+        };
+        fetchTotal();
+    }, []);
+
+    // Using supabase directly for search since it's specific to this screen
+    const handleSearch = async (text: string) => {
+        console.log('🔍 Buscando:', text);
+        setSearchText(text);
+        if (text.length < 3) {
+            setSearchResults([]);
+            return;
+        }
+
+        try {
+            console.log('📡 Consultando Supabase...');
+
+            // Busca em description, ean, e internal_code (usando ilike em todos)
+            const { data, error } = await supabaseAnon
+                .from('products_base')
+                .select('*')
+                .or(`description.ilike.%${text}%,ean.ilike.%${text}%,internal_code.ilike.%${text}%`)
+                .limit(1000);
+
+            if (error) {
+                console.error('❌ Erro Supabase:', error);
+                Alert.alert('Erro', 'Falha ao buscar: ' + error.message);
+                return;
+            }
+
+            console.log('✅ Resultados:', data?.length || 0);
+            if (data && data.length > 0) {
+                console.log('📦 Primeiro resultado:', JSON.stringify(data[0]));
+            }
+            setSearchResults(data || []);
+        } catch (err) {
+            console.error('❌ Erro inesperado:', err);
+            Alert.alert('Erro', String(err));
+        }
+    };
+
+    const handleBarCodeScanned = async (data: string) => {
         setScannedCode(data);
         setScanning(false);
+        setLoadingProduct(true);
+
+        // Auto-lookup
+        const product = await lookupProduct(data);
+        if (product && product.description) {
+            setName(product.description);
+            // If scanned code is 'SEM_EAN' or similar, mark for correction
+            if (data === 'SEM_EAN' || data === 'SEM GTIN') {
+                setNeedsCorrection(true);
+            } else {
+                setNeedsCorrection(false);
+            }
+        } else {
+            setName(''); // Not found, clear or keep previous? Better clear.
+            setNeedsCorrection(false); // Reset if product not found
+        }
+        setLoadingProduct(false);
+    };
+
+    // Auto-detect if selected product from search has no EAN
+    const selectProduct = (item: any) => {
+        setScannedCode(item.ean || 'SEM_EAN');
+        setName(item.description);
+        setSearchText('');
+        setSearchResults([]);
+        // Auto-mark if missing EAN
+        if (!item.ean || item.ean === 'SEM GTIN') {
+            setNeedsCorrection(true);
+        } else {
+            setNeedsCorrection(false);
+        }
     };
 
     const handleAddProduct = () => {
@@ -32,11 +130,13 @@ export default function HomeScreen({ navigation }: any) {
             code: scannedCode,
             quantity: qty,
             name: name.trim() || undefined,
+            needs_correction: needsCorrection,
         });
 
         setScannedCode('');
         setQuantity('');
         setName('');
+        setNeedsCorrection(false);
         Alert.alert('Sucesso', 'Produto adicionado!');
     };
 
@@ -48,12 +148,54 @@ export default function HomeScreen({ navigation }: any) {
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
             {!scannedCode ? (
                 <View style={styles.centerContent}>
+                    {/* Manual Search - TOPO */}
+                    <View style={styles.searchContainer}>
+                        <TextInput
+                            style={styles.searchInput}
+                            placeholder="🔍 Buscar produto por nome..."
+                            value={searchText}
+                            onChangeText={handleSearch}
+                        />
+                        {searchResults.length > 0 && (
+                            <View style={styles.resultsList}>
+                                <ScrollView
+                                    style={{ maxHeight: 250 }}
+                                    nestedScrollEnabled={true}
+                                >
+                                    {searchResults.map((item: any) => (
+                                        <TouchableOpacity
+                                            key={item.id}
+                                            style={styles.resultItem}
+                                            onPress={() => {
+                                                setScannedCode(item.ean || 'SEM_EAN');
+                                                setName(item.description);
+                                                setSearchText('');
+                                                setSearchResults([]);
+                                            }}
+                                        >
+                                            <Text style={styles.resultText}>{item.description}</Text>
+                                            <Text style={styles.resultSubText}>
+                                                EAN: {item.ean || 'N/A'} - Cod: {item.internal_code || 'N/A'}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+                            </View>
+                        )}
+                    </View>
+
+                    {/* Logo */}
                     <Image
                         source={require('../../assets/cnr_logo.jpg')}
                         style={styles.logo}
                         resizeMode="contain"
                     />
                     <Text style={styles.title}>CNR Balanço</Text>
+
+                    {/* Mostrar total de produtos */}
+                    <Text style={{ fontSize: 14, color: totalProducts === null ? 'gray' : (totalProducts > 0 ? 'green' : 'red'), marginBottom: 10 }}>
+                        Base: {totalProducts === null ? 'Carregando...' : `${totalProducts} produtos`}
+                    </Text>
 
                     <TouchableOpacity style={styles.scanButton} onPress={() => setScanning(true)}>
                         <Text style={styles.scanButtonText}>Ler Código de Barras</Text>
@@ -78,6 +220,7 @@ export default function HomeScreen({ navigation }: any) {
                         style={styles.logoSmall}
                         resizeMode="contain"
                     />
+                    {loadingProduct ? <Text style={{ color: 'blue' }}>Buscando produto...</Text> : null}
                     <Text style={styles.label}>Código: {scannedCode}</Text>
 
                     <Text style={styles.label}>Quantidade (Obrigatório):</Text>
@@ -90,13 +233,31 @@ export default function HomeScreen({ navigation }: any) {
                         autoFocus
                     />
 
-                    <Text style={styles.label}>Nome (Opcional):</Text>
+                    <Text style={styles.label}>Produto:</Text>
                     <TextInput
                         style={styles.input}
                         value={name}
                         onChangeText={setName}
                         placeholder="Nome do produto"
                     />
+
+                    {/* Checkbox Manual para Correção */}
+                    <TouchableOpacity
+                        style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 10 }}
+                        onPress={() => setNeedsCorrection(!needsCorrection)}
+                    >
+                        <View style={{
+                            width: 24, height: 24, borderRadius: 4, borderWidth: 2,
+                            borderColor: needsCorrection ? '#ff9800' : '#ccc',
+                            backgroundColor: needsCorrection ? '#fff3e0' : 'transparent',
+                            justifyContent: 'center', alignItems: 'center', marginRight: 10
+                        }}>
+                            {needsCorrection && <Text style={{ color: '#ff9800', fontWeight: 'bold' }}>✓</Text>}
+                        </View>
+                        <Text style={{ fontSize: 16, color: needsCorrection ? '#e65100' : '#333', fontWeight: needsCorrection ? 'bold' : 'normal' }}>
+                            {needsCorrection ? '⚠️ Marcar para Correção' : 'Marcar para Correção'}
+                        </Text>
+                    </TouchableOpacity>
 
                     <View style={styles.buttons}>
                         <TouchableOpacity style={styles.addButton} onPress={handleAddProduct}>
@@ -165,6 +326,43 @@ const styles = StyleSheet.create({
     hint: {
         color: '#666',
         marginTop: 15,
+    },
+    searchContainer: {
+        width: '100%',
+        marginBottom: 20,
+        zIndex: 10,
+    },
+    searchInput: {
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 8,
+        padding: 12,
+        fontSize: 16,
+        backgroundColor: '#fff',
+    },
+    resultsList: {
+        position: 'absolute',
+        top: 50,
+        left: 0,
+        right: 0,
+        backgroundColor: '#fff',
+        borderWidth: 1,
+        borderColor: '#ccc',
+        borderRadius: 8,
+        elevation: 5,
+    },
+    resultItem: {
+        padding: 15,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+    },
+    resultText: {
+        fontWeight: 'bold',
+        fontSize: 14,
+    },
+    resultSubText: {
+        fontSize: 12,
+        color: '#666',
     },
     form: {
         width: '100%',

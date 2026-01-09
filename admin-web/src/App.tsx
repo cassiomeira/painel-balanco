@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from './supabase';
+import * as XLSX from 'xlsx';
 
 interface Log {
   id: number;
@@ -9,6 +10,7 @@ interface Log {
   product_name: string | null;
   user_id: string;
   user_email?: string;
+  needs_correction?: boolean;
 }
 
 export default function App() {
@@ -16,15 +18,22 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [editLog, setEditLog] = useState<Log | null>(null);
   const [newQty, setNewQty] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const [searchResult, setSearchResult] = useState<any[]>([]);
+  const [stats, setStats] = useState({ total: 0, counted: 0 });
 
   useEffect(() => {
     fetchLogs();
+    fetchStats();
 
-    // Realtime subscription
+    // Realtime subscription for logs
     const channel = supabase
       .channel('table_db_changes')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'inventory_logs' }, (payload) => {
         setLogs((prev) => [payload.new as Log, ...prev]);
+        fetchStats(); // Update stats on new scan
       })
       .subscribe();
 
@@ -32,6 +41,16 @@ export default function App() {
       supabase.removeChannel(channel);
     }
   }, []);
+
+  const fetchStats = async () => {
+    const { count: total } = await supabase.from('products_base').select('*', { count: 'exact', head: true });
+    const { count: counted } = await supabase.from('products_base').select('*', { count: 'exact', head: true }).gt('current_quantity', 0);
+
+    setStats({
+      total: total || 0,
+      counted: counted || 0
+    });
+  }
 
   const fetchLogs = async () => {
     setLoading(true);
@@ -80,6 +99,95 @@ export default function App() {
     }
   }
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImporting(true);
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const bstr = evt.target?.result;
+      const wb = XLSX.read(bstr, { type: 'binary' });
+      const wsname = wb.SheetNames[0];
+      const ws = wb.Sheets[wsname];
+      const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
+
+      if (data.length < 2) return alert("Planilha vazia ou sem cabeçalho.");
+
+      // 1. Encontrar índices das colunas pelo cabeçalho (Linha 0)
+      const headerRow = data[0].map((cell: any) => cell?.toString().toUpperCase().trim());
+
+      const idxInterno = headerRow.indexOf("INTERNO");
+      const idxDesc = headerRow.indexOf("DESCRICAO"); // Sem acento ou com? A planilha mostra 'DESCRICAO'
+      const idxDesc2 = headerRow.indexOf("DESCRIÇÃO"); // Garantir os dois
+      const idxEan = headerRow.findIndex((h: string) => h && h.includes("EAN")); // "CODIGO EAN"
+
+      const finalIdxDesc = idxDesc !== -1 ? idxDesc : idxDesc2;
+
+      if (finalIdxDesc === -1 || idxEan === -1) {
+        return alert("Erro: Não encontrei as colunas 'DESCRICAO' e 'CODIGO EAN' na planilha.");
+      }
+
+      const productsToInsert = [];
+
+      // 2. Ler dados (Começa da linha 1)
+      for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        if (!row) continue;
+
+        const interno = idxInterno !== -1 ? row[idxInterno] : null;
+        const desc = row[finalIdxDesc];
+        const ean = row[idxEan];
+
+        if (desc || ean) {
+          productsToInsert.push({
+            internal_code: row[0] ? row[0].toString() : null,
+            description: row[1] ? row[1].toString() : null,
+            ean: row[9] ? row[9].toString() : null,
+            current_quantity: 0
+          });
+        }
+      }
+
+      if (productsToInsert.length > 0) {
+        // Insert in chunks to avoid payload too large (Supabase limit)
+        const chunkSize = 100;
+        let errorCount = 0;
+        for (let i = 0; i < productsToInsert.length; i += chunkSize) {
+          const chunk = productsToInsert.slice(i, i + chunkSize);
+          const { error } = await supabase.from('products_base').insert(chunk);
+          if (error) {
+            console.error("Erro import:", error);
+            errorCount++;
+          }
+        }
+
+        if (errorCount === 0) alert(`Sucesso! ${productsToInsert.length} produtos importados.`);
+        else alert(`Importação concluída com ${errorCount} erros de lote. Verifique o console.`);
+      } else {
+        alert("Nenhum dado válido encontrado na planilha.");
+      }
+      setImporting(false);
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleSearchProduct = async (term: string) => {
+    setSearchTerm(term);
+    if (term.length < 3) {
+      setSearchResult([]);
+      return;
+    }
+
+    const { data } = await supabase
+      .from('products_base')
+      .select('*')
+      .or(`description.ilike.%${term}%,ean.eq.${term},internal_code.eq.${term}`)
+      .limit(1000);
+
+    setSearchResult(data || []);
+  }
+
   const handleExportCsv = () => {
     const csvContent = "data:text/csv;charset=utf-8,"
       + "Data,Codigo,Nome,Quantidade,Usuario\n"
@@ -108,13 +216,46 @@ export default function App() {
     document.body.removeChild(link);
   }
 
+  const handleExportPending = () => {
+    // Filter only products flagged for correction
+    const pendingLogs = logs.filter(e => e.needs_correction === true);
+
+    if (pendingLogs.length === 0) {
+      alert('Nenhum produto pendente de correção encontrado.');
+      return;
+    }
+
+    // Format: code;quantity;name (include name for correction reference)
+    const txtContent = pendingLogs.map(e =>
+      `${e.product_code};${e.quantity};${e.product_name || 'SEM NOME'}`
+    ).join("\n");
+
+    const blob = new Blob([txtContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    const date = new Date().toISOString().split('T')[0].replace(/-/g, '');
+    link.download = `pendentes_correcao_${date}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f4f6f9', fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" }}>
       {/* Header */}
       <header style={{ backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', padding: '15px 30px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <img src="/cnr_logo.jpg" alt="Logo CNR" style={{ height: '60px' }} />
-          <h1 style={{ fontSize: '24px', color: '#0056b3', margin: 0 }}>Painel Gerencial</h1>
+          <div>
+            <h1 style={{ fontSize: '24px', color: '#0056b3', margin: 0 }}>Painel Gerencial</h1>
+            <div style={{ fontSize: '14px', color: '#666', marginTop: '5px' }}>
+              Total: <b>{stats.total}</b> |
+              <span style={{ color: 'green' }}> Já Editados: <b>{stats.counted}</b></span> |
+              <span style={{ color: 'red' }}> Faltam: <b>{stats.total - stats.counted}</b></span>
+            </div>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
           <button
@@ -129,8 +270,83 @@ export default function App() {
           >
             📄 Exportar TXT
           </button>
+          <button
+            onClick={handleExportPending}
+            style={{ backgroundColor: '#ff9800', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
+          >
+            ⚠️ Exportar Pendentes
+          </button>
         </div>
       </header>
+
+      {/* Action Bar (Import & Search) */}
+      <div style={{ backgroundColor: '#fff', padding: '15px 30px', borderBottom: '1px solid #eee', display: 'flex', gap: '20px', alignItems: 'center' }}>
+        {/* Import */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <label style={{ fontWeight: 'bold', color: '#333' }}>Importar Produtos (Excel):</label>
+          <input
+            type="file"
+            accept=".xlsx, .xls"
+            onChange={handleFileUpload}
+            disabled={importing}
+          />
+          {importing && <span style={{ color: 'blue' }}>Importando... aguarde...</span>}
+        </div>
+
+        {/* Clear Database */}
+        <button
+          onClick={async () => {
+            if (confirm("ATENÇÃO: Isso vai apagar TODOS os produtos importados da base. Tem certeza?")) {
+              setImporting(true);
+              const { error } = await supabase.from('products_base').delete().neq('id', 0);
+              if (error) alert("Erro ao limpar: " + error.message);
+              else {
+                alert("Base limpa com sucesso!");
+                setSearchResult([]);
+                setSearchTerm("");
+              }
+              setImporting(false);
+            }
+          }}
+          style={{ backgroundColor: '#dc3545', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+          disabled={importing}
+        >
+          🗑️ Limpar Base
+        </button>
+
+        {/* Search */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', marginLeft: '30px' }}>
+          <label style={{ fontWeight: 'bold' }}>🔍 Buscar na Base:</label>
+          <input
+            type="text"
+            placeholder="Digite nome, EAN ou código..."
+            value={searchTerm}
+            onChange={e => handleSearchProduct(e.target.value)}
+            style={{ padding: '8px', flex: 1, borderRadius: '4px', border: '1px solid #ccc' }}
+          />
+        </div>
+      </div>
+
+      {/* Search Results Area */}
+      {searchResult.length > 0 && (
+        <div style={{ padding: '0 30px', background: '#fff' }}>
+          <div style={{ background: '#fffbe6', border: '1px solid #ffe58f', padding: '10px', borderRadius: '4px' }}>
+            <strong>Resultados da Busca na Base:</strong>
+            <ul style={{ margin: '5px 0', paddingLeft: '20px' }}>
+              {searchResult.map(p => (
+                <li key={p.id} style={{
+                  color: p.current_quantity > 0 ? 'green' : 'black',
+                  fontWeight: p.current_quantity > 0 ? 'bold' : 'normal'
+                }}>
+                  {p.current_quantity > 0 && "✅ "}
+                  <b>{p.description}</b> - EAN: {p.ean} - Cód: {p.internal_code}
+                  {p.current_quantity > 0 && ` (Qtd: ${p.current_quantity})`}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <main style={{ padding: '0', width: '100%' }}>

@@ -4,131 +4,136 @@ import { InventoryContext } from '../context/InventoryContext';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 
-const [editModalVisible, setEditModalVisible] = React.useState(false);
-const [editItem, setEditItem] = React.useState<{ index: number, quantity: string } | null>(null);
-const { products, removeProduct, updateProduct, clearInventory } = useContext(InventoryContext);
 
-const handleEdit = (index: number) => {
-    setEditItem({ index, quantity: products[index].quantity.toString() });
-    setEditModalVisible(true);
-};
+export default function SummaryScreen() {
+    const [editModalVisible, setEditModalVisible] = React.useState(false);
+    const [editItem, setEditItem] = React.useState<{ index: number, quantity: string } | null>(null);
+    const { products, removeProduct, updateProduct, clearInventory } = useContext(InventoryContext);
 
-const saveEdit = () => {
-    if (editItem) {
-        const qty = parseInt(editItem.quantity);
-        if (!isNaN(qty) && qty > 0) {
-            updateProduct(editItem.index, qty);
-            setEditModalVisible(false);
-            setEditItem(null);
-        } else {
-            Alert.alert("Erro", "Quantidade inválida");
+    const handleEdit = (index: number) => {
+        setEditItem({ index, quantity: products[index].quantity.toString() });
+        setEditModalVisible(true);
+    };
+
+    const saveEdit = () => {
+        if (editItem) {
+            const qty = parseInt(editItem.quantity);
+            if (!isNaN(qty) && qty > 0) {
+                updateProduct(editItem.index, qty);
+                setEditModalVisible(false);
+                setEditItem(null);
+            } else {
+                Alert.alert("Erro", "Quantidade inválida");
+            }
         }
-    }
-};
+    };
 
-const confirmDelete = (index: number) => {
-    Alert.alert("Excluir Item", "Tem certeza?", [
-        { text: "Cancelar", style: "cancel" },
-        { text: "Excluir", style: "destructive", onPress: () => removeProduct(index) }
-    ]);
-};
+    const confirmDelete = (index: number) => {
+        Alert.alert("Excluir Item", "Tem certeza?", [
+            { text: "Cancelar", style: "cancel" },
+            { text: "Excluir", style: "destructive", onPress: () => removeProduct(index) }
+        ]);
+    };
 
-// ... exports logic remains same ...
-const handleExport = async () => {
-    if (products.length === 0) {
-        Alert.alert('Aviso', 'Lista vazia.');
-        return;
-    }
-
-    try {
-        let content = "";
-        products.forEach(p => {
-            content += `${p.code};${p.quantity}\n`;
-        });
-
-        const fileUri = (FileSystem.cacheDirectory || FileSystem.documentDirectory) + "balanco.txt";
-
-        await FileSystem.writeAsStringAsync(fileUri, content, { encoding: 'utf8' });
-
-        if (await Sharing.isAvailableAsync()) {
-            await Sharing.shareAsync(fileUri);
-        } else {
-            Alert.alert("Erro", "Compartilhamento não disponível neste dispositivo");
+    // ... exports logic remains same ...
+    const handleExport = async () => {
+        if (products.length === 0) {
+            Alert.alert('Aviso', 'Lista vazia.');
+            return;
         }
 
-    } catch (e: any) {
-        console.error(e);
-        Alert.alert('Erro', 'Detalhes: ' + (e.message || e));
+        try {
+            let content = "";
+            products.forEach(p => {
+                content += `${p.code};${p.quantity}\n`;
+            });
+
+            const fileUri = (FileSystem.cacheDirectory || FileSystem.documentDirectory) + "balanco.txt";
+
+            await FileSystem.writeAsStringAsync(fileUri, content, { encoding: 'utf8' });
+
+            if (await Sharing.isAvailableAsync()) {
+                await Sharing.shareAsync(fileUri);
+            } else {
+                Alert.alert("Erro", "Compartilhamento não disponível neste dispositivo");
+            }
+
+        } catch (e: any) {
+            console.error(e);
+            Alert.alert('Erro', 'Detalhes: ' + (e.message || e));
+        }
+    };
+
+    const confirmClear = () => {
+        Alert.alert("Limpar Lista", "Tem certeza que deseja apagar tudo?", [
+            { text: "Cancelar", style: "cancel" },
+            { text: "Apagar", style: "destructive", onPress: clearInventory }
+        ]);
     }
-};
 
-const confirmClear = () => {
-    Alert.alert("Limpar Lista", "Tem certeza que deseja apagar tudo?", [
-        { text: "Cancelar", style: "cancel" },
-        { text: "Apagar", style: "destructive", onPress: clearInventory }
-    ]);
-}
+    return (
+        <View style={styles.container}>
+            <View style={styles.header}>
+                <Text style={styles.title}>Resumo ({products.length})</Text>
+                <TouchableOpacity onPress={confirmClear} style={styles.clearButton}>
+                    <Text style={styles.clearButtonText}>Limpar</Text>
+                </TouchableOpacity>
+            </View>
 
-return (
-    <View style={styles.container}>
-        <View style={styles.header}>
-            <Text style={styles.title}>Resumo ({products.length})</Text>
-            <TouchableOpacity onPress={confirmClear} style={styles.clearButton}>
-                <Text style={styles.clearButtonText}>Limpar</Text>
-            </TouchableOpacity>
-        </View>
+            <FlatList
+                data={products}
+                keyExtractor={(item, index) => index.toString()}
+                renderItem={({ item, index }) => (
+                    <View style={styles.item}>
+                        <View>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <Text style={styles.itemCode}>Cod: {item.code}</Text>
+                                {item.needs_correction && <Text style={{ fontSize: 18, marginLeft: 5 }}>⚠️</Text>}
+                            </View>
+                            {item.name ? <Text style={styles.itemName}>{item.name}</Text> : null}
+                        </View>
+                        <View style={styles.rightSide}>
+                            <Text style={styles.itemQty}>{item.quantity}</Text>
 
-        <FlatList
-            data={products}
-            keyExtractor={(item, index) => index.toString()}
-            renderItem={({ item, index }) => (
-                <View style={styles.item}>
-                    <View>
-                        <Text style={styles.itemCode}>Cod: {item.code}</Text>
-                        {item.name ? <Text style={styles.itemName}>{item.name}</Text> : null}
+                            <TouchableOpacity onPress={() => handleEdit(index)} style={styles.editBtn}>
+                                <Text style={styles.editText}>✏️</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity onPress={() => confirmDelete(index)} style={styles.deleteBtn}>
+                                <Text style={styles.deleteText}>🗑️</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
-                    <View style={styles.rightSide}>
-                        <Text style={styles.itemQty}>{item.quantity}</Text>
+                )}
+                ListEmptyComponent={<Text style={styles.empty}>Nenhum produto adicionado.</Text>}
+            />
 
-                        <TouchableOpacity onPress={() => handleEdit(index)} style={styles.editBtn}>
-                            <Text style={styles.editText}>✏️</Text>
-                        </TouchableOpacity>
+            <View style={styles.footer}>
+                <TouchableOpacity style={styles.exportButton} onPress={handleExport}>
+                    <Text style={styles.exportButtonText}>Exportar TXT</Text>
+                </TouchableOpacity>
+            </View>
 
-                        <TouchableOpacity onPress={() => confirmDelete(index)} style={styles.deleteBtn}>
-                            <Text style={styles.deleteText}>🗑️</Text>
-                        </TouchableOpacity>
+            {/* Edit Modal */}
+            {editModalVisible && (
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Editar Quantidade</Text>
+                        <TextInput
+                            style={styles.input}
+                            keyboardType="numeric"
+                            value={editItem?.quantity}
+                            onChangeText={(t) => setEditItem(prev => prev ? { ...prev, quantity: t } : null)}
+                        />
+                        <View style={styles.modalButtons}>
+                            <Button title="Cancelar" onPress={() => setEditModalVisible(false)} color="#666" />
+                            <Button title="Salvar" onPress={saveEdit} />
+                        </View>
                     </View>
                 </View>
             )}
-            ListEmptyComponent={<Text style={styles.empty}>Nenhum produto adicionado.</Text>}
-        />
-
-        <View style={styles.footer}>
-            <TouchableOpacity style={styles.exportButton} onPress={handleExport}>
-                <Text style={styles.exportButtonText}>Exportar TXT</Text>
-            </TouchableOpacity>
         </View>
-
-        {/* Edit Modal */}
-        {editModalVisible && (
-            <View style={styles.modalOverlay}>
-                <View style={styles.modalContent}>
-                    <Text style={styles.modalTitle}>Editar Quantidade</Text>
-                    <TextInput
-                        style={styles.input}
-                        keyboardType="numeric"
-                        value={editItem?.quantity}
-                        onChangeText={(t) => setEditItem(prev => prev ? { ...prev, quantity: t } : null)}
-                    />
-                    <View style={styles.modalButtons}>
-                        <Button title="Cancelar" onPress={() => setEditModalVisible(false)} color="#666" />
-                        <Button title="Salvar" onPress={saveEdit} />
-                    </View>
-                </View>
-            </View>
-        )}
-    </View>
-);
+    );
 }
 
 const styles = StyleSheet.create({

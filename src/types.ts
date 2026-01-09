@@ -3,6 +3,7 @@ export interface Product {
   code: string;
   quantity: number;
   name?: string;
+  needs_correction?: boolean;
 }
 
 export type InventoryContextType = {

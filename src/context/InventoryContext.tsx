@@ -1,11 +1,12 @@
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Product, InventoryContextType } from '../types';
-import { supabase } from '../services/supabase';
+import { supabase, supabaseAnon } from '../services/supabase';
 import { Session } from '@supabase/supabase-js';
 
 type ExtendedContext = InventoryContextType & {
     session: Session | null;
+    lookupProduct: (code: string) => Promise<{ description: string } | null>;
     signOut: () => void;
 };
 
@@ -16,6 +17,7 @@ export const InventoryContext = createContext<ExtendedContext>({
     removeProduct: () => { },
     clearInventory: () => { },
     session: null,
+    lookupProduct: async () => null,
     signOut: () => { },
 });
 
@@ -64,13 +66,21 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
         saveProductsLocal(newProducts);
 
         // Sync to Supabase
+        // Sync to Supabase
         if (session?.user) {
+            // Detect if product needs correction (prioritize manual override if provided)
+            const needsCorrection = product.needs_correction !== undefined
+                ? product.needs_correction
+                : (!product.code || product.code === 'SEM_EAN' || product.code.trim() === '');
+
+            // 1. Insert Log with correction flag
             const { data, error } = await supabase.from('inventory_logs').insert({
                 product_code: product.code,
                 quantity: product.quantity,
                 product_name: product.name,
                 user_id: session.user.id,
-                user_email: session.user.email
+                user_email: session.user.email,
+                needs_correction: needsCorrection
             }).select().single();
 
             if (error) {
@@ -82,9 +92,38 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
                 );
                 setProducts(updatedProducts);
                 saveProductsLocal(updatedProducts);
+
+                // Log if product was flagged
+                if (needsCorrection) {
+                    console.log('⚠️ Produto marcado para correção:', product.name);
+                }
             }
+
+            // 2. Increment Product Base Count (RPC)
+            const { error: rpcError } = await supabase.rpc('increment_product_count', {
+                p_ean: product.code,
+                p_qty: product.quantity
+            });
+            if (rpcError) console.error("RPC Error:", rpcError);
         }
     };
+
+    const lookupProduct = async (code: string) => {
+        console.log('🔍 Buscando produto com EAN:', code);
+        const { data, error } = await supabaseAnon
+            .from('products_base')
+            .select('description')
+            .eq('ean', code)
+            .single();
+
+        if (error) {
+            console.log('⚠️ Produto não encontrado na base');
+            return null;
+        }
+
+        console.log('✅ Produto encontrado:', data?.description);
+        return data; // { description: "..." } or null
+    }
 
     const updateProduct = async (index: number, quantity: number) => {
         const newProducts = [...products];
@@ -134,7 +173,7 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
     }
 
     return (
-        <InventoryContext.Provider value={{ products, addProduct, updateProduct, removeProduct, clearInventory, session, signOut }}>
+        <InventoryContext.Provider value={{ products, addProduct, updateProduct, removeProduct, clearInventory, session, lookupProduct, signOut }}>
             {children}
         </InventoryContext.Provider>
     );

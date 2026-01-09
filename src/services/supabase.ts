@@ -13,3 +13,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
         detectSessionInUrl: false,
     },
 });
+
+// Cliente ANON puro (sem sessão autenticada) para buscar produtos_base
+export const supabaseAnon = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+    },
+});
