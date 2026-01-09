@@ -353,7 +353,12 @@ export default function App() {
                 }}>
                   {p.current_quantity > 0 && "✅ "}
                   <b>{p.description}</b> - EAN: {p.ean} - Cód: {p.internal_code}
-                  {p.current_quantity > 0 && ` (Qtd: ${p.current_quantity})`}
+                  {p.expected_quantity > 0 && (
+                    <span style={{ marginLeft: '10px', color: '#0056b3', fontWeight: 'bold' }}>
+                      (Estoque: {p.expected_quantity})
+                    </span>
+                  )}
+                  {p.current_quantity > 0 && ` | Já Lido: ${p.current_quantity}`}
                 </li>
               ))}
             </ul>
