@@ -133,6 +133,8 @@ export default function App() {
         Qty: idxQty
       });
 
+      const finalIdxDesc = idxDesc !== -1 ? idxDesc : idxDesc2;
+
       if (finalIdxDesc === -1 || idxEan === -1) {
         return alert(`Erro: Colunas obrigatórias não encontradas.\nDetectado: ${headerRow.join(', ')}`);
       }
