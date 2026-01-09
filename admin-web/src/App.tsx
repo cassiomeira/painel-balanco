@@ -123,7 +123,7 @@ export default function App() {
       const idxEan = headerRow.findIndex((h: string) => h && h.includes("EAN"));
       // Tentar encontrar coluna de quantidade/estoque (mais variações)
       const idxQty = headerRow.findIndex((h: string) =>
-        h && (h.includes("QTDE") || h.includes("QTD") || h.includes("ESTOQUE") || h.includes("QUANTIDADE") || h.includes("SALDO") || h.includes("ATUAL"))
+        h && (h.includes("QTDE") || h.includes("QTD") || h.includes("ESTOQUE") || h.includes("QUANTIDADE") || h.includes("SALDO") || h.includes("ATUAL") || h.includes("EXP"))
       );
 
       const finalIdxDesc = idxDesc !== -1 ? idxDesc : idxDesc2;
@@ -195,7 +195,7 @@ export default function App() {
     const { data } = await supabase
       .from('products_base')
       .select('*')
-      .or(`description.ilike.%${term}%,ean.eq.${term},internal_code.eq.${term}`)
+      .or(`description.ilike.%${term}%,ean.ilike.%${term}%,internal_code.ilike.%${term}%`)
       .limit(1000);
 
     setSearchResult(data || []);
