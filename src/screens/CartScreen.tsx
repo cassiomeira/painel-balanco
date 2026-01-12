@@ -1,11 +1,16 @@
-import React, { useContext } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import React, { useContext, useState } from 'react';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, TextInput } from 'react-native';
 import { InventoryContext } from '../context/InventoryContext';
+import { CartItem } from '../types';
 
 export default function CartScreen() {
     const { cart, removeFromCart, clearCart } = useContext(InventoryContext);
+    const [discount, setDiscount] = useState('');
 
-    const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const subtotal = cart.reduce((sum: number, item: CartItem) => sum + (item.price * item.quantity), 0);
+    const discountPercent = parseFloat(discount) || 0;
+    const discountAmount = subtotal * (discountPercent / 100);
+    const total = subtotal - discountAmount;
 
     const handleClear = () => {
         Alert.alert(
@@ -59,10 +64,29 @@ export default function CartScreen() {
             />
 
             <View style={styles.footer}>
+                <View style={styles.discountRow}>
+                    <Text style={styles.discountLabel}>Desconto (%):</Text>
+                    <TextInput
+                        style={styles.discountInput}
+                        value={discount}
+                        onChangeText={setDiscount}
+                        keyboardType="numeric"
+                        placeholder="0"
+                    />
+                </View>
+
+                {discountPercent > 0 && (
+                    <View style={styles.totalRow}>
+                        <Text style={styles.subtotalLabel}>Subtotal:</Text>
+                        <Text style={styles.subtotalValue}>R$ {subtotal.toFixed(2).replace('.', ',')}</Text>
+                    </View>
+                )}
+
                 <View style={styles.totalRow}>
-                    <Text style={styles.totalLabel}>TOTAL GERAL:</Text>
+                    <Text style={styles.totalLabel}>{discountPercent > 0 ? 'TOTAL COM DESC.:' : 'TOTAL GERAL:'}</Text>
                     <Text style={styles.totalValue}>R$ {total.toFixed(2).replace('.', ',')}</Text>
                 </View>
+
                 <TouchableOpacity
                     style={styles.finishButton}
                     onPress={() => Alert.alert('Finalizar', 'Para finalizar, o cliente deve ir ao caixa com os produtos.')}
@@ -165,5 +189,38 @@ const styles = StyleSheet.create({
     emptyText: {
         fontSize: 16,
         color: '#999',
-    }
+    },
+    discountRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 15,
+        paddingBottom: 15,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+    },
+    discountLabel: {
+        fontSize: 16,
+        color: '#666',
+        fontWeight: 'bold',
+    },
+    discountInput: {
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 5,
+        padding: 8,
+        width: 80,
+        textAlign: 'center',
+        fontSize: 16,
+        backgroundColor: '#fff',
+    },
+    subtotalLabel: {
+        fontSize: 14,
+        color: '#666',
+    },
+    subtotalValue: {
+        fontSize: 16,
+        color: '#666',
+        textDecorationLine: 'line-through',
+    },
 });
