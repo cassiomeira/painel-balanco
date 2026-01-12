@@ -7,12 +7,26 @@ import SummaryScreen from './src/screens/SummaryScreen';
 import CartScreen from './src/screens/CartScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import BlockedScreen from './src/screens/BlockedScreen';
 import { Ionicons } from '@expo/vector-icons';
+import { View, ActivityIndicator } from 'react-native';
 
 const Tab = createBottomTabNavigator();
 
 function AppContent() {
-  const { session } = useContext(InventoryContext);
+  const { session, isIpAuthorized } = useContext(InventoryContext);
+
+  if (isIpAuthorized === null) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+        <ActivityIndicator size="large" color="#007bff" />
+      </View>
+    );
+  }
+
+  if (isIpAuthorized === false) {
+    return <BlockedScreen />;
+  }
 
   if (!session) {
     return <LoginScreen />;

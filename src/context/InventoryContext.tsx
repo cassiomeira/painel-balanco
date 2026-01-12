@@ -27,12 +27,17 @@ export const InventoryContext = createContext<ExtendedContext>({
     session: null,
     lookupProduct: async () => null,
     signOut: () => { },
+    isIpAuthorized: null,
+    checkIp: async () => { },
 });
 
 export const InventoryProvider = ({ children }: { children: ReactNode }) => {
     const [products, setProducts] = useState<Product[]>([]);
     const [cart, setCart] = useState<any[]>([]);
     const [session, setSession] = useState<Session | null>(null);
+    const [isIpAuthorized, setIsIpAuthorized] = useState<boolean | null>(null);
+
+    const AUTHORIZED_IPS = ['177.184.181.29', '177.184.190.27'];
 
     useEffect(() => {
         // Check active session
@@ -47,7 +52,31 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
         // Load local backup
         loadProducts();
         loadCart();
+        checkIp();
     }, []);
+
+    const checkIp = async () => {
+        try {
+            console.log('🛡️ Verificando IP...');
+            const response = await fetch('https://api.ipify.org?format=json');
+            const data = await response.json();
+            const currentIp = data.ip;
+            console.log('🌐 IP Atual:', currentIp);
+
+            if (AUTHORIZED_IPS.includes(currentIp)) {
+                console.log('✅ IP Autorizado');
+                setIsIpAuthorized(true);
+            } else {
+                console.log('❌ IP Não Autorizado');
+                setIsIpAuthorized(false);
+            }
+        } catch (error) {
+            console.error('Erro ao verificar IP:', error);
+            // Em caso de erro de rede (offline etc), podemos decidir se bloqueamos ou permitimos.
+            // Para segurança total, bloqueamos.
+            setIsIpAuthorized(false);
+        }
+    };
 
     const loadProducts = async () => {
         try {
@@ -237,7 +266,9 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
             clearCart,
             session,
             lookupProduct,
-            signOut
+            signOut,
+            isIpAuthorized,
+            checkIp
         }}>
             {children}
         </InventoryContext.Provider>

@@ -24,4 +24,7 @@ export type InventoryContextType = {
   addToCart: (item: CartItem) => void;
   removeFromCart: (index: number) => void;
   clearCart: () => void;
+  // Security
+  isIpAuthorized: boolean | null;
+  checkIp: () => Promise<void>;
 };
