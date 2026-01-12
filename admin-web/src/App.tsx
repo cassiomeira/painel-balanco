@@ -125,6 +125,10 @@ export default function App() {
       const idxQty = headerRow.findIndex((h: string) =>
         h && (h.includes("QTDE") || h.includes("QTD") || h.includes("ESTOQUE") || h.includes("QUANTIDADE") || h.includes("SALDO") || h.includes("ATUAL") || h.includes("EXP"))
       );
+      // Tentar encontrar coluna de PREÇO/VALOR
+      const idxPrice = headerRow.findIndex((h: string) =>
+        h && (h.includes("VALOR") || h.includes("PRECO") || h.includes("PREÇO") || h.includes("UNIT"))
+      );
 
       const finalIdxDesc = idxDesc !== -1 ? idxDesc : idxDesc2;
 
@@ -150,6 +154,7 @@ export default function App() {
         const desc = row[finalIdxDesc];
         const ean = row[idxEan];
         const qty = idxQty !== -1 ? parseInt(row[idxQty]) : 0;
+        const price = idxPrice !== -1 ? parseFloat(row[idxPrice].toString().replace(',', '.')) : 0;
 
         if (desc || ean) {
           productsToInsert.push({
@@ -157,6 +162,7 @@ export default function App() {
             description: desc ? desc.toString() : null,
             ean: ean ? ean.toString() : null,
             expected_quantity: isNaN(qty) ? 0 : qty,
+            price: isNaN(price) ? 0 : price,
             current_quantity: 0
           });
         }

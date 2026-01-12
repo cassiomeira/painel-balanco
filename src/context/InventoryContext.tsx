@@ -6,7 +6,11 @@ import { Session } from '@supabase/supabase-js';
 
 type ExtendedContext = InventoryContextType & {
     session: Session | null;
-    lookupProduct: (code: string) => Promise<{ description: string } | null>;
+    lookupProduct: (code: string) => Promise<{
+        description: string;
+        expected_quantity?: number;
+        price?: number;
+    } | null>;
     signOut: () => void;
 };
 
@@ -112,7 +116,7 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
         console.log('🔍 Buscando produto com EAN:', code);
         const { data, error } = await supabaseAnon
             .from('products_base')
-            .select('description, expected_quantity')
+            .select('description, expected_quantity, price')
             .eq('ean', code)
             .single();
 

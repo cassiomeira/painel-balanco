@@ -11,6 +11,7 @@ export default function HomeScreen({ navigation }: any) {
     const [quantity, setQuantity] = useState('');
     const [name, setName] = useState('');
     const [expectedQty, setExpectedQty] = useState<number | null>(null);
+    const [price, setPrice] = useState<number | null>(null);
     const { addProduct, session, signOut, lookupProduct } = useContext(InventoryContext);
     const [hasPermission, setHasPermission] = useState<boolean | null>(null);
     const [loadingProduct, setLoadingProduct] = useState(false);
@@ -90,6 +91,7 @@ export default function HomeScreen({ navigation }: any) {
         if (product && product.description) {
             setName(product.description);
             setExpectedQty(product.expected_quantity || 0);
+            setPrice(product.price || 0);
             // If scanned code is 'SEM_EAN' or similar, mark for correction
             if (data === 'SEM_EAN' || data === 'SEM GTIN') {
                 setNeedsCorrection(true);
@@ -99,6 +101,7 @@ export default function HomeScreen({ navigation }: any) {
         } else {
             setName(''); // Not found, clear or keep previous? Better clear.
             setExpectedQty(null);
+            setPrice(null);
             setNeedsCorrection(false); // Reset if product not found
         }
         setLoadingProduct(false);
@@ -109,6 +112,7 @@ export default function HomeScreen({ navigation }: any) {
         setScannedCode(item.ean || 'SEM_EAN');
         setName(item.description);
         setExpectedQty(item.expected_quantity || 0);
+        setPrice(item.price || 0);
         setSearchText('');
         setSearchResults([]);
         // Auto-mark if missing EAN
@@ -141,6 +145,7 @@ export default function HomeScreen({ navigation }: any) {
         setQuantity('');
         setName('');
         setExpectedQty(null);
+        setPrice(null);
         setNeedsCorrection(false);
         Alert.alert('Sucesso', 'Produto adicionado!');
     };
@@ -175,11 +180,18 @@ export default function HomeScreen({ navigation }: any) {
                                         >
                                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                                                 <Text style={[styles.resultText, { flex: 1 }]}>{item.description}</Text>
-                                                {item.expected_quantity !== undefined && (
-                                                    <Text style={{ fontSize: 13, color: '#0056b3', fontWeight: 'bold' }}>
-                                                        Estoque: {item.expected_quantity}
-                                                    </Text>
-                                                )}
+                                                <View style={{ alignItems: 'flex-end' }}>
+                                                    {item.expected_quantity !== undefined && (
+                                                        <Text style={{ fontSize: 13, color: '#0056b3', fontWeight: 'bold' }}>
+                                                            Estoque: {item.expected_quantity}
+                                                        </Text>
+                                                    )}
+                                                    {item.price !== undefined && item.price > 0 && (
+                                                        <Text style={{ fontSize: 13, color: '#28a745', fontWeight: 'bold' }}>
+                                                            R$ {item.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                        </Text>
+                                                    )}
+                                                </View>
                                             </View>
                                             <Text style={styles.resultSubText}>
                                                 EAN: {item.ean || 'N/A'} - Cod: {item.internal_code || 'N/A'}
@@ -230,8 +242,13 @@ export default function HomeScreen({ navigation }: any) {
                     {loadingProduct ? <Text style={{ color: 'blue' }}>Buscando produto...</Text> : null}
                     <Text style={styles.label}>Código: {scannedCode}</Text>
                     {expectedQty !== null && (
-                        <Text style={{ fontSize: 18, color: '#0056b3', fontWeight: 'bold', marginVertical: 5 }}>
+                        <Text style={{ fontSize: 18, color: '#0056b3', fontWeight: 'bold', marginVertical: 2 }}>
                             Estoque Esperado: {expectedQty}
+                        </Text>
+                    )}
+                    {price !== null && price > 0 && (
+                        <Text style={{ fontSize: 20, color: '#28a745', fontWeight: 'bold', marginVertical: 2 }}>
+                            Preço: R$ {price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </Text>
                     )}
 
@@ -283,6 +300,7 @@ export default function HomeScreen({ navigation }: any) {
                             setQuantity('');
                             setName('');
                             setExpectedQty(null);
+                            setPrice(null);
                             setNeedsCorrection(false);
                         }}>
                             <Text style={styles.cancelButtonText}>Cancelar</Text>
