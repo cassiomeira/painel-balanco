@@ -1,13 +1,15 @@
 import React, { useContext } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { InventoryContext, InventoryProvider } from './src/context/InventoryContext';
 import HomeScreen from './src/screens/HomeScreen';
 import SummaryScreen from './src/screens/SummaryScreen';
+import CartScreen from './src/screens/CartScreen';
 import LoginScreen from './src/screens/LoginScreen';
-import { Button } from 'react-native';
+import SettingsScreen from './src/screens/SettingsScreen';
+import { Ionicons } from '@expo/vector-icons';
 
-const Stack = createStackNavigator();
+const Tab = createBottomTabNavigator();
 
 function AppContent() {
   const { session } = useContext(InventoryContext);
@@ -18,8 +20,25 @@ function AppContent() {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator
-        screenOptions={{
+      <Tab.Navigator
+        screenOptions={({ route }) => ({
+          tabBarIcon: ({ focused, color, size }) => {
+            let iconName: any;
+
+            if (route.name === 'Leitor') {
+              iconName = focused ? 'barcode' : 'barcode-outline';
+            } else if (route.name === 'Carrinho') {
+              iconName = focused ? 'cart' : 'cart-outline';
+            } else if (route.name === 'Resumo') {
+              iconName = focused ? 'list' : 'list-outline';
+            } else if (route.name === 'Ajustes') {
+              iconName = focused ? 'settings' : 'settings-outline';
+            }
+
+            return <Ionicons name={iconName} size={size} color={color} />;
+          },
+          tabBarActiveTintColor: '#007bff',
+          tabBarInactiveTintColor: 'gray',
           headerStyle: {
             backgroundColor: '#007bff',
           },
@@ -27,28 +46,13 @@ function AppContent() {
           headerTitleStyle: {
             fontWeight: 'bold',
           },
-        }}
+        })}
       >
-        <Stack.Screen
-          name="Home"
-          component={HomeScreen}
-          options={({ navigation }) => ({
-            title: 'CNR Balanço',
-            headerRight: () => (
-              <Button
-                onPress={() => navigation.navigate('Summary')}
-                title="Resumo"
-                color="#fff"
-              />
-            ),
-          })}
-        />
-        <Stack.Screen
-          name="Summary"
-          component={SummaryScreen}
-          options={{ title: 'Lista de Produtos' }}
-        />
-      </Stack.Navigator>
+        <Tab.Screen name="Leitor" component={HomeScreen} options={{ title: 'Balanço / Preço' }} />
+        <Tab.Screen name="Carrinho" component={CartScreen} options={{ title: 'Carrinho de Venda' }} />
+        <Tab.Screen name="Resumo" component={SummaryScreen} options={{ title: 'Produtos Lidos' }} />
+        <Tab.Screen name="Ajustes" component={SettingsScreen} options={{ title: 'Configurações' }} />
+      </Tab.Navigator>
     </NavigationContainer>
   );
 }

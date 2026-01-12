@@ -20,6 +20,10 @@ export const InventoryContext = createContext<ExtendedContext>({
     updateProduct: () => { },
     removeProduct: () => { },
     clearInventory: () => { },
+    cart: [],
+    addToCart: () => { },
+    removeFromCart: () => { },
+    clearCart: () => { },
     session: null,
     lookupProduct: async () => null,
     signOut: () => { },
@@ -27,6 +31,7 @@ export const InventoryContext = createContext<ExtendedContext>({
 
 export const InventoryProvider = ({ children }: { children: ReactNode }) => {
     const [products, setProducts] = useState<Product[]>([]);
+    const [cart, setCart] = useState<any[]>([]);
     const [session, setSession] = useState<Session | null>(null);
 
     useEffect(() => {
@@ -41,6 +46,7 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
 
         // Load local backup
         loadProducts();
+        loadCart();
     }, []);
 
     const loadProducts = async () => {
@@ -61,6 +67,48 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
             console.error(e);
         }
     }
+
+    const loadCart = async () => {
+        try {
+            const stored = await AsyncStorage.getItem('@cart');
+            if (stored) {
+                setCart(JSON.parse(stored));
+            }
+        } catch (e) {
+            console.error('Failed to load cart', e);
+        }
+    };
+
+    const saveCartLocal = async (newCart: any[]) => {
+        try {
+            await AsyncStorage.setItem('@cart', JSON.stringify(newCart));
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    const addToCart = (item: any) => {
+        const newCart = [...cart];
+        const existingIndex = newCart.findIndex(i => i.code === item.code);
+        if (existingIndex !== -1) {
+            newCart[existingIndex].quantity += item.quantity;
+        } else {
+            newCart.push(item);
+        }
+        setCart(newCart);
+        saveCartLocal(newCart);
+    };
+
+    const removeFromCart = (index: number) => {
+        const newCart = cart.filter((_, i) => i !== index);
+        setCart(newCart);
+        saveCartLocal(newCart);
+    };
+
+    const clearCart = () => {
+        setCart([]);
+        saveCartLocal([]);
+    };
 
     const addProduct = async (product: Product) => {
         // Optimistic UI update (temp ID)
@@ -177,7 +225,20 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
     }
 
     return (
-        <InventoryContext.Provider value={{ products, addProduct, updateProduct, removeProduct, clearInventory, session, lookupProduct, signOut }}>
+        <InventoryContext.Provider value={{
+            products,
+            addProduct,
+            updateProduct,
+            removeProduct,
+            clearInventory,
+            cart,
+            addToCart,
+            removeFromCart,
+            clearCart,
+            session,
+            lookupProduct,
+            signOut
+        }}>
             {children}
         </InventoryContext.Provider>
     );

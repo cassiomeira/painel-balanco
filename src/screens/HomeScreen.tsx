@@ -12,7 +12,7 @@ export default function HomeScreen({ navigation }: any) {
     const [name, setName] = useState('');
     const [expectedQty, setExpectedQty] = useState<number | null>(null);
     const [price, setPrice] = useState<number | null>(null);
-    const { addProduct, session, signOut, lookupProduct } = useContext(InventoryContext);
+    const { addProduct, session, signOut, lookupProduct, addToCart } = useContext(InventoryContext);
     const [hasPermission, setHasPermission] = useState<boolean | null>(null);
     const [loadingProduct, setLoadingProduct] = useState(false);
     const [needsCorrection, setNeedsCorrection] = useState(false);
@@ -141,13 +141,49 @@ export default function HomeScreen({ navigation }: any) {
             needs_correction: needsCorrection,
         });
 
+        resetForm();
+        Alert.alert('Sucesso', 'Produto adicionado ao Balanço!');
+    };
+
+    const handleAddToCart = () => {
+        if (!quantity) {
+            Alert.alert('Erro', 'Informe a quantidade.');
+            return;
+        }
+        const qty = parseInt(quantity);
+        if (isNaN(qty)) {
+            Alert.alert('Erro', 'Quantidade inválida.');
+            return;
+        }
+
+        if (!price || price <= 0) {
+            Alert.alert('Aviso', 'Este produto está sem preço na planilha. Deseja adicionar mesmo assim?', [
+                { text: 'Cancelar', style: 'cancel' },
+                { text: 'Adicionar', onPress: () => processAddToCart(qty) }
+            ]);
+        } else {
+            processAddToCart(qty);
+        }
+    };
+
+    const processAddToCart = (qty: number) => {
+        addToCart({
+            code: scannedCode,
+            name: name || 'Produto sem nome',
+            price: price || 0,
+            quantity: qty
+        });
+        resetForm();
+        Alert.alert('Carrinho', 'Produto adicionado ao carrinho!');
+    };
+
+    const resetForm = () => {
         setScannedCode('');
         setQuantity('');
         setName('');
         setExpectedQty(null);
         setPrice(null);
         setNeedsCorrection(false);
-        Alert.alert('Sucesso', 'Produto adicionado!');
     };
 
     if (scanning) {
@@ -290,19 +326,18 @@ export default function HomeScreen({ navigation }: any) {
 
                     <View style={styles.buttons}>
                         <TouchableOpacity style={styles.addButton} onPress={handleAddProduct}>
-                            <Text style={styles.addButtonText}>Adicionar Produto</Text>
+                            <Text style={styles.addButtonText}>📋 Adicionar ao Balanço</Text>
                         </TouchableOpacity>
 
                         <View style={styles.spacer} />
 
-                        <TouchableOpacity style={styles.cancelButton} onPress={() => {
-                            setScannedCode('');
-                            setQuantity('');
-                            setName('');
-                            setExpectedQty(null);
-                            setPrice(null);
-                            setNeedsCorrection(false);
-                        }}>
+                        <TouchableOpacity style={[styles.addButton, { backgroundColor: '#007bff' }]} onPress={handleAddToCart}>
+                            <Text style={styles.addButtonText}>🛒 Adicionar ao Carrinho</Text>
+                        </TouchableOpacity>
+
+                        <View style={styles.spacer} />
+
+                        <TouchableOpacity style={styles.cancelButton} onPress={resetForm}>
                             <Text style={styles.cancelButtonText}>Cancelar</Text>
                         </TouchableOpacity>
                     </View>
