@@ -37,8 +37,6 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
     const [session, setSession] = useState<Session | null>(null);
     const [isIpAuthorized, setIsIpAuthorized] = useState<boolean | null>(null);
 
-    const AUTHORIZED_IPS = ['177.184.181.29', '177.184.190.27'];
-
     useEffect(() => {
         // Check active session
         supabase.auth.getSession().then(({ data: { session } }) => {
@@ -57,23 +55,36 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
 
     const checkIp = async () => {
         try {
-            console.log('🛡️ Verificando IP...');
-            const response = await fetch('https://api.ipify.org?format=json');
-            const data = await response.json();
-            const currentIp = data.ip;
-            console.log('🌐 IP Atual:', currentIp);
+            console.log('🛡️ Verificando IP dinamicamente...');
+            // 1. Buscar IP atual
+            const ipResponse = await fetch('https://api.ipify.org?format=json');
+            const ipData = await ipResponse.json();
+            const currentIp = ipData.ip;
+            console.log('🌐 IP Atual detectado:', currentIp);
 
-            if (AUTHORIZED_IPS.includes(currentIp)) {
-                console.log('✅ IP Autorizado');
+            // 2. Buscar lista de IPs autorizados no Supabase
+            const { data: dbIps, error: dbError } = await supabaseAnon
+                .from('authorized_ips')
+                .select('ip_address');
+
+            if (dbError) {
+                console.error('Erro ao buscar lista de IPs:', dbError);
+                setIsIpAuthorized(false);
+                return;
+            }
+
+            const authorizedIps = dbIps.map(item => item.ip_address);
+            console.log('📋 IPs Autorizados na base:', authorizedIps);
+
+            if (authorizedIps.includes(currentIp)) {
+                console.log('✅ IP Autorizado pela base');
                 setIsIpAuthorized(true);
             } else {
-                console.log('❌ IP Não Autorizado');
+                console.log('❌ IP Não Autorizado pela base');
                 setIsIpAuthorized(false);
             }
         } catch (error) {
-            console.error('Erro ao verificar IP:', error);
-            // Em caso de erro de rede (offline etc), podemos decidir se bloqueamos ou permitimos.
-            // Para segurança total, bloqueamos.
+            console.error('Erro crítico na verificação de IP:', error);
             setIsIpAuthorized(false);
         }
     };
