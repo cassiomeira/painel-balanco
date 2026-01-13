@@ -194,71 +194,77 @@ export default function HomeScreen({ navigation }: any) {
     // Se não há código lido, usamos View para a busca (evita conflito de scroll)
     if (!scannedCode) {
         return (
-            <View style={styles.searchActiveContainer}>
-                {/* Manual Search Input */}
-                <TextInput
-                    style={styles.searchInput}
-                    placeholder="🔍 Buscar produto por nome..."
-                    value={searchText}
-                    onChangeText={handleSearch}
-                />
+            <View style={{ flex: 1, backgroundColor: '#fff' }}>
+                <FlatList
+                    data={searchResults}
+                    keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="on-drag"
+                    ListHeaderComponent={
+                        <View style={{ paddingHorizontal: 20, paddingTop: 40, paddingBottom: 10 }}>
+                            <TextInput
+                                style={styles.searchInput}
+                                placeholder="🔍 Buscar produto por nome..."
+                                value={searchText}
+                                onChangeText={handleSearch}
+                            />
+                        </View>
+                    }
+                    ListEmptyComponent={
+                        searchText.length < 3 ? (
+                            <View style={[styles.centerContent, { padding: 20, marginTop: 40 }]}>
+                                <Image
+                                    source={require('../../assets/cnr_logo.jpg')}
+                                    style={styles.logo}
+                                    resizeMode="contain"
+                                />
+                                <Text style={styles.title}>CNR Balanço</Text>
 
-                {searchResults.length > 0 ? (
-                    <FlatList
-                        data={searchResults}
-                        renderItem={({ item }) => (
-                            <TouchableOpacity
-                                key={item.id}
-                                style={styles.resultItem}
-                                onPress={() => selectProduct(item)}
-                            >
-                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={styles.resultText}>{item.description}</Text>
-                                        <Text style={styles.resultSubText}>
-                                            EAN: {item.ean || 'N/A'} - Cod: {item.internal_code || 'N/A'}
-                                        </Text>
-                                    </View>
-                                    <View style={{ alignItems: 'flex-end', marginLeft: 10 }}>
-                                        {item.expected_quantity !== undefined && (
-                                            <Text style={{ fontSize: 13, color: '#0056b3', fontWeight: 'bold' }}>
-                                                Estoque: {item.expected_quantity}
-                                            </Text>
-                                        )}
-                                        {item.price !== undefined && item.price > 0 && (
-                                            <Text style={{ fontSize: 13, color: '#28a745', fontWeight: 'bold' }}>
-                                                R$ {item.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                            </Text>
-                                        )}
-                                    </View>
+                                <Text style={{ fontSize: 14, color: totalProducts === null ? 'gray' : (totalProducts > 0 ? 'green' : 'red'), marginBottom: 10 }}>
+                                    Base: {totalProducts === null ? 'Carregando...' : `${totalProducts} produtos`}
+                                </Text>
+
+                                <TouchableOpacity style={styles.scanButton} onPress={() => setScanning(true)}>
+                                    <Text style={styles.scanButtonText}>Ler Código de Barras</Text>
+                                </TouchableOpacity>
+
+                                <Text style={styles.hint}>Toque no botão para iniciar a leitura</Text>
+                            </View>
+                        ) : (
+                            <View style={{ padding: 40, alignItems: 'center' }}>
+                                <Text style={{ color: '#666' }}>Nenhum produto encontrado.</Text>
+                            </View>
+                        )
+                    }
+                    renderItem={({ item }) => (
+                        <TouchableOpacity
+                            style={[styles.resultItem, { marginHorizontal: 20, backgroundColor: '#fcfcfc', borderBottomWidth: 1, borderBottomColor: '#eee' }]}
+                            onPress={() => selectProduct(item)}
+                        >
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.resultText}>{item.description}</Text>
+                                    <Text style={styles.resultSubText}>
+                                        EAN: {item.ean || 'N/A'} - Cod: {item.internal_code || 'N/A'}
+                                    </Text>
                                 </View>
-                            </TouchableOpacity>
-                        )}
-                        keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
-                        keyboardShouldPersistTaps="handled"
-                        style={styles.resultsListStatic}
-                        contentContainerStyle={{ paddingBottom: 100 }}
-                    />
-                ) : (
-                    <View style={styles.centerContent}>
-                        <Image
-                            source={require('../../assets/cnr_logo.jpg')}
-                            style={styles.logo}
-                            resizeMode="contain"
-                        />
-                        <Text style={styles.title}>CNR Balanço</Text>
-
-                        <Text style={{ fontSize: 14, color: totalProducts === null ? 'gray' : (totalProducts > 0 ? 'green' : 'red'), marginBottom: 10 }}>
-                            Base: {totalProducts === null ? 'Carregando...' : `${totalProducts} produtos`}
-                        </Text>
-
-                        <TouchableOpacity style={styles.scanButton} onPress={() => setScanning(true)}>
-                            <Text style={styles.scanButtonText}>Ler Código de Barras</Text>
+                                <View style={{ alignItems: 'flex-end', marginLeft: 10 }}>
+                                    {item.expected_quantity !== undefined && (
+                                        <Text style={{ fontSize: 13, color: '#0056b3', fontWeight: 'bold' }}>
+                                            Estoque: {item.expected_quantity}
+                                        </Text>
+                                    )}
+                                    {item.price !== undefined && item.price > 0 && (
+                                        <Text style={{ fontSize: 13, color: '#28a745', fontWeight: 'bold' }}>
+                                            R$ {item.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                        </Text>
+                                    )}
+                                </View>
+                            </View>
                         </TouchableOpacity>
-
-                        <Text style={styles.hint}>Toque no botão para iniciar a leitura</Text>
-                    </View>
-                )}
+                    )}
+                    keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
+                    contentContainerStyle={{ flexGrow: 1 }}
+                />
             </View>
         );
     }
