@@ -193,8 +193,8 @@ export default function HomeScreen({ navigation }: any) {
     if (!scannedCode) {
         return (
             <View style={styles.searchActiveContainer}>
-                {/* Manual Search - TOPO */}
-                <View style={styles.searchContainer}>
+                {/* Manual Search */}
+                <View style={searchResults.length > 0 ? { flex: 1 } : styles.searchContainer}>
                     <TextInput
                         style={styles.searchInput}
                         placeholder="🔍 Buscar produto por nome..."
@@ -202,7 +202,7 @@ export default function HomeScreen({ navigation }: any) {
                         onChangeText={handleSearch}
                     />
                     {searchResults.length > 0 && (
-                        <View style={styles.resultsList}>
+                        <View style={styles.resultsListRelative}>
                             <FlatList
                                 data={searchResults}
                                 renderItem={({ item }) => (
@@ -232,33 +232,34 @@ export default function HomeScreen({ navigation }: any) {
                                     </TouchableOpacity>
                                 )}
                                 keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
-                                style={{ maxHeight: 500 }}
                                 keyboardShouldPersistTaps="handled"
-                                nestedScrollEnabled={true}
+                                contentContainerStyle={{ paddingBottom: 50 }}
                             />
                         </View>
                     )}
                 </View>
 
-                {/* Logo e Botão Scan */}
-                <View style={styles.centerContent}>
-                    <Image
-                        source={require('../../assets/cnr_logo.jpg')}
-                        style={styles.logo}
-                        resizeMode="contain"
-                    />
-                    <Text style={styles.title}>CNR Balanço</Text>
+                {/* Mostrar Logo e Botão apenas se NÃO houver resultados para dar espaço */}
+                {searchResults.length === 0 && (
+                    <View style={styles.centerContent}>
+                        <Image
+                            source={require('../../assets/cnr_logo.jpg')}
+                            style={styles.logo}
+                            resizeMode="contain"
+                        />
+                        <Text style={styles.title}>CNR Balanço</Text>
 
-                    <Text style={{ fontSize: 14, color: totalProducts === null ? 'gray' : (totalProducts > 0 ? 'green' : 'red'), marginBottom: 10 }}>
-                        Base: {totalProducts === null ? 'Carregando...' : `${totalProducts} produtos`}
-                    </Text>
+                        <Text style={{ fontSize: 14, color: totalProducts === null ? 'gray' : (totalProducts > 0 ? 'green' : 'red'), marginBottom: 10 }}>
+                            Base: {totalProducts === null ? 'Carregando...' : `${totalProducts} produtos`}
+                        </Text>
 
-                    <TouchableOpacity style={styles.scanButton} onPress={() => setScanning(true)}>
-                        <Text style={styles.scanButtonText}>Ler Código de Barras</Text>
-                    </TouchableOpacity>
+                        <TouchableOpacity style={styles.scanButton} onPress={() => setScanning(true)}>
+                            <Text style={styles.scanButtonText}>Ler Código de Barras</Text>
+                        </TouchableOpacity>
 
-                    <Text style={styles.hint}>Toque no botão para iniciar a leitura</Text>
-                </View>
+                        <Text style={styles.hint}>Toque no botão para iniciar a leitura</Text>
+                    </View>
+                )}
             </View>
         );
     }
@@ -428,6 +429,14 @@ const styles = StyleSheet.create({
         borderColor: '#ccc',
         borderRadius: 8,
         elevation: 5,
+    },
+    resultsListRelative: {
+        backgroundColor: '#fff',
+        borderWidth: 1,
+        borderColor: '#ccc',
+        borderRadius: 8,
+        marginTop: 10,
+        flex: 1, // Faz a lista crescer e rolar
     },
     resultItem: {
         padding: 15,
