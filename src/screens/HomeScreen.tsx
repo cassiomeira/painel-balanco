@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView, Image, FlatList } from 'react-native';
 import { CameraView, Camera } from 'expo-camera';
 import { InventoryContext } from '../context/InventoryContext';
 import React, { useState, useEffect, useContext } from 'react';
@@ -190,57 +190,58 @@ export default function HomeScreen({ navigation }: any) {
         return <Scanner onScanned={handleBarCodeScanned} onClose={() => setScanning(false)} />;
     }
 
-    return (
-        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-            {!scannedCode ? (
-                <View style={styles.centerContent}>
-                    {/* Manual Search - TOPO */}
-                    <View style={styles.searchContainer}>
-                        <TextInput
-                            style={styles.searchInput}
-                            placeholder="🔍 Buscar produto por nome..."
-                            value={searchText}
-                            onChangeText={handleSearch}
-                        />
-                        {searchResults.length > 0 && (
-                            <View style={styles.resultsList}>
-                                <ScrollView
-                                    style={{ maxHeight: 450 }}
-                                    nestedScrollEnabled={true}
-                                    keyboardShouldPersistTaps="handled"
-                                >
-                                    {searchResults.map((item: any) => (
-                                        <TouchableOpacity
-                                            key={item.id}
-                                            style={styles.resultItem}
-                                            onPress={() => selectProduct(item)}
-                                        >
-                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                <Text style={[styles.resultText, { flex: 1 }]}>{item.description}</Text>
-                                                <View style={{ alignItems: 'flex-end' }}>
-                                                    {item.expected_quantity !== undefined && (
-                                                        <Text style={{ fontSize: 13, color: '#0056b3', fontWeight: 'bold' }}>
-                                                            Estoque: {item.expected_quantity}
-                                                        </Text>
-                                                    )}
-                                                    {item.price !== undefined && item.price > 0 && (
-                                                        <Text style={{ fontSize: 13, color: '#28a745', fontWeight: 'bold' }}>
-                                                            R$ {item.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                                        </Text>
-                                                    )}
-                                                </View>
+    if (!scannedCode) {
+        return (
+            <View style={styles.searchActiveContainer}>
+                {/* Manual Search - TOPO */}
+                <View style={styles.searchContainer}>
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder="🔍 Buscar produto por nome..."
+                        value={searchText}
+                        onChangeText={handleSearch}
+                    />
+                    {searchResults.length > 0 && (
+                        <View style={styles.resultsList}>
+                            <FlatList
+                                data={searchResults}
+                                renderItem={({ item }) => (
+                                    <TouchableOpacity
+                                        key={item.id}
+                                        style={styles.resultItem}
+                                        onPress={() => selectProduct(item)}
+                                    >
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <Text style={[styles.resultText, { flex: 1 }]}>{item.description}</Text>
+                                            <View style={{ alignItems: 'flex-end' }}>
+                                                {item.expected_quantity !== undefined && (
+                                                    <Text style={{ fontSize: 13, color: '#0056b3', fontWeight: 'bold' }}>
+                                                        Estoque: {item.expected_quantity}
+                                                    </Text>
+                                                )}
+                                                {item.price !== undefined && item.price > 0 && (
+                                                    <Text style={{ fontSize: 13, color: '#28a745', fontWeight: 'bold' }}>
+                                                        R$ {item.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                    </Text>
+                                                )}
                                             </View>
-                                            <Text style={styles.resultSubText}>
-                                                EAN: {item.ean || 'N/A'} - Cod: {item.internal_code || 'N/A'}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </ScrollView>
-                            </View>
-                        )}
-                    </View>
+                                        </View>
+                                        <Text style={styles.resultSubText}>
+                                            EAN: {item.ean || 'N/A'} - Cod: {item.internal_code || 'N/A'}
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+                                keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
+                                style={{ maxHeight: 500 }}
+                                keyboardShouldPersistTaps="handled"
+                                nestedScrollEnabled={true}
+                            />
+                        </View>
+                    )}
+                </View>
 
-                    {/* Logo */}
+                {/* Logo e Botão Scan */}
+                <View style={styles.centerContent}>
                     <Image
                         source={require('../../assets/cnr_logo.jpg')}
                         style={styles.logo}
@@ -248,7 +249,6 @@ export default function HomeScreen({ navigation }: any) {
                     />
                     <Text style={styles.title}>CNR Balanço</Text>
 
-                    {/* Mostrar total de produtos */}
                     <Text style={{ fontSize: 14, color: totalProducts === null ? 'gray' : (totalProducts > 0 ? 'green' : 'red'), marginBottom: 10 }}>
                         Base: {totalProducts === null ? 'Carregando...' : `${totalProducts} produtos`}
                     </Text>
@@ -259,91 +259,95 @@ export default function HomeScreen({ navigation }: any) {
 
                     <Text style={styles.hint}>Toque no botão para iniciar a leitura</Text>
                 </View>
-            ) : (
-                <View style={styles.form}>
-                    {session?.user?.email && (
-                        <View style={{ marginBottom: 20, alignItems: 'center' }}>
-                            <Text style={{ color: '#666', marginBottom: 5 }}>
-                                Logado como: <Text style={{ fontWeight: 'bold' }}>{session.user.email}</Text>
-                            </Text>
-                            <TouchableOpacity onPress={signOut} style={{ padding: 8, backgroundColor: '#ffebee', borderRadius: 5 }}>
-                                <Text style={{ color: '#d32f2f', fontWeight: 'bold' }}>Sair (Logout)</Text>
-                            </TouchableOpacity>
-                        </View>
-                    )}
-                    <Image
-                        source={require('../../assets/cnr_logo.jpg')}
-                        style={styles.logoSmall}
-                        resizeMode="contain"
-                    />
-                    {loadingProduct ? <Text style={{ color: 'blue' }}>Buscando produto...</Text> : null}
-                    <Text style={styles.label}>Código: {scannedCode}</Text>
-                    {expectedQty !== null && (
-                        <Text style={{ fontSize: 18, color: '#0056b3', fontWeight: 'bold', marginVertical: 2 }}>
-                            Estoque Esperado: {expectedQty}
+            </View>
+        );
+    }
+
+    // TELA DO FORMULÁRIO (Usando ScrollView para caber tudo)
+    return (
+        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+            <View style={styles.form}>
+                {session?.user?.email && (
+                    <View style={{ marginBottom: 20, alignItems: 'center' }}>
+                        <Text style={{ color: '#666', marginBottom: 5 }}>
+                            Logado como: <Text style={{ fontWeight: 'bold' }}>{session.user.email}</Text>
                         </Text>
-                    )}
-                    {price !== null && price > 0 && (
-                        <Text style={{ fontSize: 20, color: '#28a745', fontWeight: 'bold', marginVertical: 2 }}>
-                            Preço: R$ {price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </Text>
-                    )}
-
-                    <Text style={styles.label}>Quantidade (Obrigatório):</Text>
-                    <TextInput
-                        style={styles.input}
-                        value={quantity}
-                        onChangeText={setQuantity}
-                        keyboardType="numeric"
-                        placeholder="0"
-                        autoFocus
-                    />
-
-                    <Text style={styles.label}>Produto:</Text>
-                    <TextInput
-                        style={styles.input}
-                        value={name}
-                        onChangeText={setName}
-                        placeholder="Nome do produto"
-                    />
-
-                    {/* Checkbox Manual para Correção */}
-                    <TouchableOpacity
-                        style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 10 }}
-                        onPress={() => setNeedsCorrection(!needsCorrection)}
-                    >
-                        <View style={{
-                            width: 24, height: 24, borderRadius: 4, borderWidth: 2,
-                            borderColor: needsCorrection ? '#ff9800' : '#ccc',
-                            backgroundColor: needsCorrection ? '#fff3e0' : 'transparent',
-                            justifyContent: 'center', alignItems: 'center', marginRight: 10
-                        }}>
-                            {needsCorrection && <Text style={{ color: '#ff9800', fontWeight: 'bold' }}>✓</Text>}
-                        </View>
-                        <Text style={{ fontSize: 16, color: needsCorrection ? '#e65100' : '#333', fontWeight: needsCorrection ? 'bold' : 'normal' }}>
-                            {needsCorrection ? '⚠️ Marcar para Correção' : 'Marcar para Correção'}
-                        </Text>
-                    </TouchableOpacity>
-
-                    <View style={styles.buttons}>
-                        <TouchableOpacity style={styles.addButton} onPress={handleAddProduct}>
-                            <Text style={styles.addButtonText}>📋 Adicionar ao Balanço</Text>
-                        </TouchableOpacity>
-
-                        <View style={styles.spacer} />
-
-                        <TouchableOpacity style={[styles.addButton, { backgroundColor: '#007bff' }]} onPress={handleAddToCart}>
-                            <Text style={styles.addButtonText}>🛒 Adicionar ao Carrinho</Text>
-                        </TouchableOpacity>
-
-                        <View style={styles.spacer} />
-
-                        <TouchableOpacity style={styles.cancelButton} onPress={resetForm}>
-                            <Text style={styles.cancelButtonText}>Cancelar</Text>
+                        <TouchableOpacity onPress={signOut} style={{ padding: 8, backgroundColor: '#ffebee', borderRadius: 5 }}>
+                            <Text style={{ color: '#d32f2f', fontWeight: 'bold' }}>Sair (Logout)</Text>
                         </TouchableOpacity>
                     </View>
+                )}
+                <Image
+                    source={require('../../assets/cnr_logo.jpg')}
+                    style={styles.logoSmall}
+                    resizeMode="contain"
+                />
+                {loadingProduct ? <Text style={{ color: 'blue' }}>Buscando produto...</Text> : null}
+                <Text style={styles.label}>Código: {scannedCode}</Text>
+                {expectedQty !== null && (
+                    <Text style={{ fontSize: 18, color: '#0056b3', fontWeight: 'bold', marginVertical: 2 }}>
+                        Estoque Esperado: {expectedQty}
+                    </Text>
+                )}
+                {price !== null && price > 0 && (
+                    <Text style={{ fontSize: 20, color: '#28a745', fontWeight: 'bold', marginVertical: 2 }}>
+                        Preço: R$ {price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </Text>
+                )}
+
+                <Text style={styles.label}>Quantidade (Obrigatório):</Text>
+                <TextInput
+                    style={styles.input}
+                    value={quantity}
+                    onChangeText={setQuantity}
+                    keyboardType="numeric"
+                    placeholder="0"
+                    autoFocus
+                />
+
+                <Text style={styles.label}>Produto:</Text>
+                <TextInput
+                    style={styles.input}
+                    value={name}
+                    onChangeText={setName}
+                    placeholder="Nome do produto"
+                />
+
+                <TouchableOpacity
+                    style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 10 }}
+                    onPress={() => setNeedsCorrection(!needsCorrection)}
+                >
+                    <View style={{
+                        width: 24, height: 24, borderRadius: 4, borderWidth: 2,
+                        borderColor: needsCorrection ? '#ff9800' : '#ccc',
+                        backgroundColor: needsCorrection ? '#fff3e0' : 'transparent',
+                        justifyContent: 'center', alignItems: 'center', marginRight: 10
+                    }}>
+                        {needsCorrection && <Text style={{ color: '#ff9800', fontWeight: 'bold' }}>✓</Text>}
+                    </View>
+                    <Text style={{ fontSize: 16, color: needsCorrection ? '#e65100' : '#333', fontWeight: needsCorrection ? 'bold' : 'normal' }}>
+                        {needsCorrection ? '⚠️ Marcar para Correção' : 'Marcar para Correção'}
+                    </Text>
+                </TouchableOpacity>
+
+                <View style={styles.buttons}>
+                    <TouchableOpacity style={styles.addButton} onPress={handleAddProduct}>
+                        <Text style={styles.addButtonText}>📋 Adicionar ao Balanço</Text>
+                    </TouchableOpacity>
+
+                    <View style={styles.spacer} />
+
+                    <TouchableOpacity style={[styles.addButton, { backgroundColor: '#007bff' }]} onPress={handleAddToCart}>
+                        <Text style={styles.addButtonText}>🛒 Adicionar ao Carrinho</Text>
+                    </TouchableOpacity>
+
+                    <View style={styles.spacer} />
+
+                    <TouchableOpacity style={styles.cancelButton} onPress={resetForm}>
+                        <Text style={styles.cancelButtonText}>Cancelar</Text>
+                    </TouchableOpacity>
                 </View>
-            )}
+            </View>
         </ScrollView>
     );
 }
@@ -354,6 +358,12 @@ const styles = StyleSheet.create({
         padding: 20,
         backgroundColor: '#fff',
         justifyContent: 'center',
+    },
+    searchActiveContainer: {
+        flex: 1,
+        padding: 20,
+        backgroundColor: '#fff',
+        paddingTop: 40, // Espaço para não colar no topo
     },
     centerContent: {
         alignItems: 'center',
