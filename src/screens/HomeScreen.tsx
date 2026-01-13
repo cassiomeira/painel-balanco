@@ -205,8 +205,9 @@ export default function HomeScreen({ navigation }: any) {
                         {searchResults.length > 0 && (
                             <View style={styles.resultsList}>
                                 <ScrollView
-                                    style={{ maxHeight: 250 }}
+                                    style={{ maxHeight: 450 }}
                                     nestedScrollEnabled={true}
+                                    keyboardShouldPersistTaps="handled"
                                 >
                                     {searchResults.map((item: any) => (
                                         <TouchableOpacity
