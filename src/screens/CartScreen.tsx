@@ -30,6 +30,11 @@ export default function CartScreen() {
                 <Text style={styles.itemSubText}>
                     {item.quantity}x R$ {item.price.toFixed(2)}
                 </Text>
+                {(item.ean || item.internalCode) && (
+                    <Text style={styles.itemCodes}>
+                        {item.ean ? `EAN: ${item.ean}` : ''} {item.internalCode ? `| Cod: ${item.internalCode}` : ''}
+                    </Text>
+                )}
             </View>
             <View style={{ alignItems: 'flex-end' }}>
                 <Text style={styles.itemTotal}>
@@ -222,5 +227,11 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#666',
         textDecorationLine: 'line-through',
+    },
+    itemCodes: {
+        fontSize: 12,
+        color: '#888',
+        marginTop: 4,
+        fontStyle: 'italic',
     },
 });

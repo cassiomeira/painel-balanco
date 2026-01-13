@@ -12,6 +12,8 @@ export default function HomeScreen({ navigation }: any) {
     const [name, setName] = useState('');
     const [expectedQty, setExpectedQty] = useState<number | null>(null);
     const [price, setPrice] = useState<number | null>(null);
+    const [currentEan, setCurrentEan] = useState('');
+    const [currentInternalCode, setCurrentInternalCode] = useState('');
     const { addProduct, session, signOut, lookupProduct, addToCart } = useContext(InventoryContext);
     const [hasPermission, setHasPermission] = useState<boolean | null>(null);
     const [loadingProduct, setLoadingProduct] = useState(false);
@@ -92,6 +94,8 @@ export default function HomeScreen({ navigation }: any) {
             setName(product.description);
             setExpectedQty(product.expected_quantity || 0);
             setPrice(product.price || 0);
+            setCurrentEan(product.ean || data);
+            setCurrentInternalCode(product.internal_code || '');
             // If scanned code is 'SEM_EAN' or similar, mark for correction
             if (data === 'SEM_EAN' || data === 'SEM GTIN') {
                 setNeedsCorrection(true);
@@ -102,6 +106,8 @@ export default function HomeScreen({ navigation }: any) {
             setName(''); // Not found, clear or keep previous? Better clear.
             setExpectedQty(null);
             setPrice(null);
+            setCurrentEan(data);
+            setCurrentInternalCode('');
             setNeedsCorrection(false); // Reset if product not found
         }
         setLoadingProduct(false);
@@ -113,6 +119,8 @@ export default function HomeScreen({ navigation }: any) {
         setName(item.description);
         setExpectedQty(item.expected_quantity || 0);
         setPrice(item.price || 0);
+        setCurrentEan(item.ean || '');
+        setCurrentInternalCode(item.internal_code || '');
         setSearchText('');
         setSearchResults([]);
         // Auto-mark if missing EAN
@@ -171,7 +179,9 @@ export default function HomeScreen({ navigation }: any) {
             code: scannedCode,
             name: name || 'Produto sem nome',
             price: price || 0,
-            quantity: qty
+            quantity: qty,
+            ean: currentEan,
+            internalCode: currentInternalCode
         });
         resetForm();
         Alert.alert('Carrinho', 'Produto adicionado ao carrinho!');
@@ -183,6 +193,8 @@ export default function HomeScreen({ navigation }: any) {
         setName('');
         setExpectedQty(null);
         setPrice(null);
+        setCurrentEan('');
+        setCurrentInternalCode('');
         setNeedsCorrection(false);
     };
 

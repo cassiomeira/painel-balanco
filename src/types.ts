@@ -11,6 +11,8 @@ export interface CartItem {
   name: string;
   price: number;
   quantity: number;
+  ean?: string;
+  internalCode?: string;
 }
 
 export type InventoryContextType = {

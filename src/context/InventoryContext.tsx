@@ -10,6 +10,8 @@ type ExtendedContext = InventoryContextType & {
         description: string;
         expected_quantity?: number;
         price?: number;
+        ean?: string;
+        internal_code?: string;
     } | null>;
     signOut: () => void;
 };
@@ -204,7 +206,7 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
         console.log('🔍 Buscando produto com EAN:', code);
         const { data, error } = await supabaseAnon
             .from('products_base')
-            .select('description, expected_quantity, price')
+            .select('description, expected_quantity, price, ean, internal_code')
             .eq('ean', code)
             .single();
 
