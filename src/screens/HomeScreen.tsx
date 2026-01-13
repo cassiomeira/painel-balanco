@@ -190,6 +190,8 @@ export default function HomeScreen({ navigation }: any) {
         return <Scanner onScanned={handleBarCodeScanned} onClose={() => setScanning(false)} />;
     }
 
+    // TELA DO FORMULÁRIO (Usando ScrollView para caber tudo)
+    // Se não há código lido, usamos View para a busca (evita conflito de scroll)
     if (!scannedCode) {
         return (
             <View style={styles.searchActiveContainer}>
@@ -202,7 +204,6 @@ export default function HomeScreen({ navigation }: any) {
                 />
 
                 {searchResults.length > 0 ? (
-                    /* Search Results - Taking all remaining space */
                     <FlatList
                         data={searchResults}
                         renderItem={({ item }) => (
@@ -239,7 +240,6 @@ export default function HomeScreen({ navigation }: any) {
                         contentContainerStyle={{ paddingBottom: 100 }}
                     />
                 ) : (
-                    /* Initial Content - Logo and Button */
                     <View style={styles.centerContent}>
                         <Image
                             source={require('../../assets/cnr_logo.jpg')}
@@ -263,7 +263,7 @@ export default function HomeScreen({ navigation }: any) {
         );
     }
 
-    // TELA DO FORMULÁRIO (Usando ScrollView para caber tudo)
+    // Se temos código lido, usamos ScrollView para o formulário caber em telas pequenas
     return (
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
             <View style={styles.form}>
