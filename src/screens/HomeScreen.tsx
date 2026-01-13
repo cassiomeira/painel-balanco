@@ -193,54 +193,53 @@ export default function HomeScreen({ navigation }: any) {
     if (!scannedCode) {
         return (
             <View style={styles.searchActiveContainer}>
-                {/* Manual Search */}
-                <View style={searchResults.length > 0 ? { flex: 1 } : styles.searchContainer}>
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder="🔍 Buscar produto por nome..."
-                        value={searchText}
-                        onChangeText={handleSearch}
-                    />
-                    {searchResults.length > 0 && (
-                        <View style={styles.resultsListRelative}>
-                            <FlatList
-                                data={searchResults}
-                                renderItem={({ item }) => (
-                                    <TouchableOpacity
-                                        key={item.id}
-                                        style={styles.resultItem}
-                                        onPress={() => selectProduct(item)}
-                                    >
-                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <Text style={[styles.resultText, { flex: 1 }]}>{item.description}</Text>
-                                            <View style={{ alignItems: 'flex-end' }}>
-                                                {item.expected_quantity !== undefined && (
-                                                    <Text style={{ fontSize: 13, color: '#0056b3', fontWeight: 'bold' }}>
-                                                        Estoque: {item.expected_quantity}
-                                                    </Text>
-                                                )}
-                                                {item.price !== undefined && item.price > 0 && (
-                                                    <Text style={{ fontSize: 13, color: '#28a745', fontWeight: 'bold' }}>
-                                                        R$ {item.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                                    </Text>
-                                                )}
-                                            </View>
-                                        </View>
+                {/* Manual Search Input */}
+                <TextInput
+                    style={styles.searchInput}
+                    placeholder="🔍 Buscar produto por nome..."
+                    value={searchText}
+                    onChangeText={handleSearch}
+                />
+
+                {searchResults.length > 0 ? (
+                    /* Search Results - Taking all remaining space */
+                    <FlatList
+                        data={searchResults}
+                        renderItem={({ item }) => (
+                            <TouchableOpacity
+                                key={item.id}
+                                style={styles.resultItem}
+                                onPress={() => selectProduct(item)}
+                            >
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.resultText}>{item.description}</Text>
                                         <Text style={styles.resultSubText}>
                                             EAN: {item.ean || 'N/A'} - Cod: {item.internal_code || 'N/A'}
                                         </Text>
-                                    </TouchableOpacity>
-                                )}
-                                keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
-                                keyboardShouldPersistTaps="handled"
-                                contentContainerStyle={{ paddingBottom: 50 }}
-                            />
-                        </View>
-                    )}
-                </View>
-
-                {/* Mostrar Logo e Botão apenas se NÃO houver resultados para dar espaço */}
-                {searchResults.length === 0 && (
+                                    </View>
+                                    <View style={{ alignItems: 'flex-end', marginLeft: 10 }}>
+                                        {item.expected_quantity !== undefined && (
+                                            <Text style={{ fontSize: 13, color: '#0056b3', fontWeight: 'bold' }}>
+                                                Estoque: {item.expected_quantity}
+                                            </Text>
+                                        )}
+                                        {item.price !== undefined && item.price > 0 && (
+                                            <Text style={{ fontSize: 13, color: '#28a745', fontWeight: 'bold' }}>
+                                                R$ {item.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                            </Text>
+                                        )}
+                                    </View>
+                                </View>
+                            </TouchableOpacity>
+                        )}
+                        keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
+                        keyboardShouldPersistTaps="handled"
+                        style={styles.resultsListStatic}
+                        contentContainerStyle={{ paddingBottom: 100 }}
+                    />
+                ) : (
+                    /* Initial Content - Logo and Button */
                     <View style={styles.centerContent}>
                         <Image
                             source={require('../../assets/cnr_logo.jpg')}
@@ -430,13 +429,13 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         elevation: 5,
     },
-    resultsListRelative: {
+    resultsListStatic: {
         backgroundColor: '#fff',
         borderWidth: 1,
-        borderColor: '#ccc',
+        borderColor: '#eee',
         borderRadius: 8,
         marginTop: 10,
-        flex: 1, // Faz a lista crescer e rolar
+        flex: 1,
     },
     resultItem: {
         padding: 15,
