@@ -99,6 +99,24 @@ export default function App() {
     }
   }
 
+  const handleClearLogs = async () => {
+    if (confirm("⚠️ ATENÇÃO: Você está prestes a apagar TODOS os produtos lançados no balanço. Esta ação não pode ser desfeita. Deseja continuar?")) {
+      if (confirm("CONFIRMAÇÃO FINAL: Tem certeza absoluta? Todos os registros de contagem serão removidos.")) {
+        setLoading(true);
+        const { error } = await supabase.from('inventory_logs').delete().neq('id', 0);
+
+        if (error) {
+          alert("Erro ao limpar balanço: " + error.message);
+        } else {
+          alert("Balanço limpo com sucesso!");
+          setLogs([]);
+          fetchStats(); // Update stats (total, counted, etc)
+        }
+        setLoading(false);
+      }
+    }
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -300,6 +318,13 @@ export default function App() {
             style={{ backgroundColor: '#ff9800', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
           >
             ⚠️ Exportar Pendentes
+          </button>
+          <button
+            onClick={handleClearLogs}
+            style={{ backgroundColor: '#dc3545', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
+            disabled={loading}
+          >
+            🗑️ Limpar Balanço
           </button>
         </div>
       </header>
