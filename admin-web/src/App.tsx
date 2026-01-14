@@ -198,11 +198,17 @@ export default function App() {
       return;
     }
 
-    const { data } = await supabase
-      .from('products_base')
-      .select('*')
-      .or(`description.ilike.%${term}%,ean.ilike.%${term}%,internal_code.ilike.%${term}%`)
-      .limit(1000);
+    const words = term.trim().split(/[\s%&]+/).filter(w => w.length > 0);
+    let query = supabase.from('products_base').select('*');
+
+    if (words.length > 1) {
+      const descriptionFilter = `and(${words.map(w => `description.ilike.%${w}%`).join(',')})`;
+      query = query.or(`${descriptionFilter},ean.ilike.%${term}%,internal_code.ilike.%${term}%`);
+    } else {
+      query = query.or(`description.ilike.%${term}%,ean.ilike.%${term}%,internal_code.ilike.%${term}%`);
+    }
+
+    const { data } = await query.limit(1000);
 
     setSearchResult(data || []);
   }

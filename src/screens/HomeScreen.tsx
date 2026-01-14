@@ -59,12 +59,22 @@ export default function HomeScreen({ navigation }: any) {
         try {
             console.log('📡 Consultando Supabase...');
 
-            // Busca em description, ean, e internal_code (usando ilike em todos)
-            const { data, error } = await supabaseAnon
-                .from('products_base')
-                .select('*')
-                .or(`description.ilike.%${text}%,ean.ilike.%${text}%,internal_code.ilike.%${text}%`)
-                .limit(1000);
+            // Pesquisa inteligente: divide por espaços e garante que todas as palavras estejam na descrição
+            // Ou que o termo completo bata com EAN ou código interno
+            const words = text.trim().split(/[\s%&]+/).filter(w => w.length > 0);
+
+            let query = supabaseAnon.from('products_base').select('*');
+
+            if (words.length > 1) {
+                // Se houver várias palavras, todas devem estar na descrição (AND)
+                const descriptionFilter = `and(${words.map(w => `description.ilike.%${w}%`).join(',')})`;
+                query = query.or(`${descriptionFilter},ean.ilike.%${text}%,internal_code.ilike.%${text}%`);
+            } else {
+                // Caso simples: apenas uma palavra
+                query = query.or(`description.ilike.%${text}%,ean.ilike.%${text}%,internal_code.ilike.%${text}%`);
+            }
+
+            const { data, error } = await query.limit(1000);
 
             if (error) {
                 console.error('❌ Erro Supabase:', error);
